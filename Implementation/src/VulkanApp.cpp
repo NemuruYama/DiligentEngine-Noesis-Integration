@@ -66,25 +66,9 @@ namespace NoesisDiligent
         }
     }
 
-    bool VulkanBackend::Initialize(SDL_Window& window, std::uint32_t width, std::uint32_t height)
-    {
-        mWindow = &window;
-        mWindowWidth = width;
-        mWindowHeight = height;
-        mPendingResize = false;
-        return InitDiligent(window);
-    }
-
     std::uint64_t VulkanBackend::GetSDLWindowFlags() const
     {
         return SDL_WINDOW_VULKAN;
-    }
-
-    void VulkanBackend::UpdateSize(std::uint32_t width, std::uint32_t height)
-    {
-        mWindowWidth = width;
-        mWindowHeight = height;
-        mPendingResize = true;
     }
 
     void VulkanBackend::RegisterNoesisPackages()
@@ -334,69 +318,6 @@ namespace NoesisDiligent
         return true;
     }
 
-    bool VulkanBackend::QueryWindowPixelSize(std::uint32_t& width, std::uint32_t& height) const
-    {
-        if (mWindow == nullptr)
-        {
-            return false;
-        }
-
-        int pixelWidth = 0;
-        int pixelHeight = 0;
-        if (!SDL_GetWindowSizeInPixels(mWindow, &pixelWidth, &pixelHeight))
-        {
-            return false;
-        }
-
-        if (pixelWidth <= 0 || pixelHeight <= 0)
-        {
-            return false;
-        }
-
-        width = static_cast<std::uint32_t>(pixelWidth);
-        height = static_cast<std::uint32_t>(pixelHeight);
-        return true;
-    }
-
-    bool VulkanBackend::CanResizeSwapChain(std::uint32_t& width, std::uint32_t& height) const
-    {
-        if (mWindow == nullptr)
-        {
-            return false;
-        }
-
-        const SDL_WindowFlags flags = SDL_GetWindowFlags(mWindow);
-        if ((flags & SDL_WINDOW_MINIMIZED) != 0)
-        {
-            return false;
-        }
-
-        return QueryWindowPixelSize(width, height);
-    }
-
-    VulkanBackend::RenderTargetExtent VulkanBackend::GetRenderTargetExtent(
-        Diligent::ITexture* backBufferTexture,
-        Diligent::ITexture* depthBufferTexture) const
-    {
-        RenderTargetExtent extent{};
-
-        if (backBufferTexture != nullptr)
-        {
-            const Diligent::TextureDesc& backBufferDesc = backBufferTexture->GetDesc();
-            extent.width = backBufferDesc.Width;
-            extent.height = backBufferDesc.Height;
-        }
-
-        if ((extent.width == 0 || extent.height == 0) && depthBufferTexture != nullptr)
-        {
-            const Diligent::TextureDesc& depthDesc = depthBufferTexture->GetDesc();
-            extent.width = depthDesc.Width;
-            extent.height = depthDesc.Height;
-        }
-
-        return extent;
-    }
-
     VulkanBackend::BackBufferTarget *VulkanBackend::GetBackBufferTarget(Diligent::ITexture *backBufferTexture)
     {
         Diligent::RefCntAutoPtr<Diligent::ITextureVk> backBufferTextureVk{backBufferTexture, Diligent::IID_TextureVk};
@@ -564,74 +485,24 @@ namespace NoesisDiligent
         return mNoesisDevice;
     }
 
-    bool VulkanBackend::ResizeSwapChain()
+    bool VulkanBackend::OnSwapChainResized()
     {
-        if (mSwapChain == nullptr)
-        {
-            return false;
-        }
-
-        std::uint32_t width = 0;
-        std::uint32_t height = 0;
-        if (!CanResizeSwapChain(width, height))
-        {
-            return false;
-        }
-
-        mWindowWidth = width;
-        mWindowHeight = height;
-
-        mImmediateContext->WaitForIdle();
-        mSwapChain->Resize(mWindowWidth, mWindowHeight, Diligent::SURFACE_TRANSFORM_OPTIMAL);
         if (!RecreateVulkanTargets())
         {
             std::fprintf(stderr, "Failed to recreate Vulkan render targets after resize\n");
             return false;
         }
-        mPendingResize = false;
+
         return true;
     }
 
-    void VulkanBackend::RenderFrame(Noesis::IView *view, double timeSeconds)
+    void VulkanBackend::RenderFrameImpl(
+        Noesis::IView *view,
+        double timeSeconds,
+        Diligent::ITexture *backBufferTexture,
+        Diligent::ITexture *depthBufferTexture)
     {
-        if (view == nullptr || mSwapChain == nullptr)
-        {
-            return;
-        }
-
-        if (mPendingResize)
-        {
-            if (!ResizeSwapChain())
-            {
-                return;
-            }
-        }
-
-        std::uint32_t drawableWidth = 0;
-        std::uint32_t drawableHeight = 0;
-        if (!CanResizeSwapChain(drawableWidth, drawableHeight))
-        {
-            return;
-        }
-
-        if (drawableWidth != mWindowWidth || drawableHeight != mWindowHeight)
-        {
-            mWindowWidth = drawableWidth;
-            mWindowHeight = drawableHeight;
-            mPendingResize = true;
-            if (!ResizeSwapChain())
-            {
-                return;
-            }
-        }
-
-        Diligent::ITexture *backBufferTexture = mSwapChain->GetCurrentBackBufferRTV()->GetTexture();
-        Diligent::ITexture *depthBufferTexture = mSwapChain->GetDepthBufferDSV()->GetTexture();
         const RenderTargetExtent extent = GetRenderTargetExtent(backBufferTexture, depthBufferTexture);
-        if (extent.width == 0 || extent.height == 0)
-        {
-            return;
-        }
 
         BackBufferTarget *backBufferTarget = GetBackBufferTarget(backBufferTexture);
         if (backBufferTarget == nullptr || mRenderPass == VK_NULL_HANDLE || mDepthView == VK_NULL_HANDLE)
@@ -697,37 +568,28 @@ namespace NoesisDiligent
         mSwapChain->Present(1);
     }
 
-    void VulkanBackend::PrepareForNoesisShutdown()
+    void VulkanBackend::ReleaseBackendResources()
     {
-        if (mImmediateContext != nullptr)
-        {
-            mImmediateContext->Flush();
-            mImmediateContext->WaitForIdle();
-        }
-
-        mNoesisDevice.Reset();
-    }
-
-    void VulkanBackend::Shutdown()
-    {
-        if (mImmediateContext != nullptr)
-        {
-            mImmediateContext->WaitForIdle();
-        }
-
         DestroyVulkanTargets();
         mImmediateContextVk.Release();
         mDeviceVk.Release();
-        mSwapChain.Release();
-        mImmediateContext.Release();
-        mDevice.Release();
-        mNoesisDevice.Reset();
-        mWindow = nullptr;
+        mVkGetInstanceProcAddr = VK_NULL_HANDLE;
+        mVkGetDeviceProcAddr = VK_NULL_HANDLE;
+        mVkCreateRenderPass = VK_NULL_HANDLE;
+        mVkDestroyRenderPass = VK_NULL_HANDLE;
+        mVkCreateImageView = VK_NULL_HANDLE;
+        mVkDestroyImageView = VK_NULL_HANDLE;
+        mVkCreateFramebuffer = VK_NULL_HANDLE;
+        mVkDestroyFramebuffer = VK_NULL_HANDLE;
+        mVkCmdBeginRenderPass = VK_NULL_HANDLE;
+        mVkCmdEndRenderPass = VK_NULL_HANDLE;
+        mVkCmdSetViewport = VK_NULL_HANDLE;
+        mVkCmdSetScissor = VK_NULL_HANDLE;
+        mQueueFamilyIndex = 0xFFFFFFFF;
     }
 
     int RunVulkanApp(const AppStartupOptions& startupOptions)
     {
-        VulkanBackend backend;
-        return RunNoesisApp(backend, startupOptions);
+        return RunBackendApp<VulkanBackend>(startupOptions);
     }
 }

@@ -4,6 +4,7 @@ set(ENGINE_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 include(${CMAKE_CURRENT_SOURCE_DIR}/NoesisGUI.cmake)
 
 set(CLIENT_SOURCES
+    src/DiligentNoesisBackendBase.cpp
     src/NoesisAppHost.cpp
     src/VulkanApp.cpp
     src/D3D12App.cpp
@@ -15,6 +16,7 @@ set(CLIENT_SOURCES
 )
 
 set(CLIENT_HEADERS
+    include/DiligentNoesisBackendBase.hpp
     include/NoesisAppHost.hpp
     include/VulkanApp.hpp
     include/D3D12App.hpp

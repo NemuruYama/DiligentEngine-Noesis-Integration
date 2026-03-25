@@ -1,32 +1,26 @@
 #pragma once
 
-#include "NoesisAppHost.hpp"
+#include "DiligentNoesisBackendBase.hpp"
 
 #include <vulkan/vulkan.h>
 
 #include <RefCntAutoPtr.hpp>
 #include <DeviceContextVk.h>
 #include <RenderDeviceVk.h>
-#include <SwapChain.h>
 
 #include <cstdint>
 #include <vector>
 
 namespace NoesisDiligent
 {
-    class VulkanBackend final : public NoesisAppBackend
+    class VulkanBackend final : public DiligentNoesisBackendBase
     {
     public:
         std::uint64_t GetSDLWindowFlags() const override;
 
-        bool Initialize(SDL_Window& window, std::uint32_t width, std::uint32_t height) override;
-        void UpdateSize(std::uint32_t width, std::uint32_t height) override;
         void RegisterNoesisPackages() override;
         void ShutdownNoesisPackages() override;
         Noesis::Ptr<Noesis::RenderDevice> CreateRenderDevice() override;
-        void RenderFrame(Noesis::IView *view, double timeSeconds) override;
-        void PrepareForNoesisShutdown() override;
-        void Shutdown() override;
 
     private:
         struct BackBufferTarget
@@ -36,12 +30,6 @@ namespace NoesisDiligent
             VkFramebuffer framebuffer = VK_NULL_HANDLE;
         };
 
-        struct RenderTargetExtent
-        {
-            std::uint32_t width = 0;
-            std::uint32_t height = 0;
-        };
-
         bool LoadAppVulkanFunctions();
         void SyncTextureLayouts(Diligent::ITexture *backBufferTexture, Diligent::ITexture *depthBufferTexture);
         void DestroyBackBufferTargets();
@@ -49,25 +37,13 @@ namespace NoesisDiligent
         bool CreateRenderPass();
         bool CreateDepthView();
         bool RecreateVulkanTargets();
-        bool QueryWindowPixelSize(std::uint32_t& width, std::uint32_t& height) const;
-        bool CanResizeSwapChain(std::uint32_t& width, std::uint32_t& height) const;
-        RenderTargetExtent GetRenderTargetExtent(Diligent::ITexture* backBufferTexture, Diligent::ITexture* depthBufferTexture) const;
         BackBufferTarget *GetBackBufferTarget(Diligent::ITexture *backBufferTexture);
-        bool InitDiligent(SDL_Window& window);
-        bool ResizeSwapChain();
+        bool InitDiligent(SDL_Window& window) override;
+        bool OnSwapChainResized() override;
+        void RenderFrameImpl(Noesis::IView *view, double timeSeconds, Diligent::ITexture *backBufferTexture, Diligent::ITexture *depthBufferTexture) override;
+        void ReleaseBackendResources() override;
 
-        bool mPendingResize = false;
-        std::uint32_t mWindowWidth = 0;
-        std::uint32_t mWindowHeight = 0;
-        std::uint64_t mFrameNumber = 1;
         std::uint32_t mQueueFamilyIndex = 0xFFFFFFFF;
-        SDL_Window* mWindow = nullptr;
-
-        Noesis::Ptr<Noesis::RenderDevice> mNoesisDevice;
-
-        Diligent::RefCntAutoPtr<Diligent::IRenderDevice> mDevice;
-        Diligent::RefCntAutoPtr<Diligent::IDeviceContext> mImmediateContext;
-        Diligent::RefCntAutoPtr<Diligent::ISwapChain> mSwapChain;
         Diligent::RefCntAutoPtr<Diligent::IRenderDeviceVk> mDeviceVk;
         Diligent::RefCntAutoPtr<Diligent::IDeviceContextVk> mImmediateContextVk;
 

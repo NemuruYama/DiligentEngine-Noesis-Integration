@@ -57,25 +57,9 @@ namespace NoesisDiligent
         }
     }
 
-    bool D3D12Backend::Initialize(SDL_Window &window, std::uint32_t width, std::uint32_t height)
-    {
-        mWindow = &window;
-        mWindowWidth = width;
-        mWindowHeight = height;
-        mPendingResize = false;
-        return InitDiligent(window);
-    }
-
     std::uint64_t D3D12Backend::GetSDLWindowFlags() const
     {
         return 0;
-    }
-
-    void D3D12Backend::UpdateSize(std::uint32_t width, std::uint32_t height)
-    {
-        mWindowWidth = width;
-        mWindowHeight = height;
-        mPendingResize = true;
     }
 
     void D3D12Backend::RegisterNoesisPackages()
@@ -87,46 +71,6 @@ namespace NoesisDiligent
     void D3D12Backend::ShutdownNoesisPackages()
     {
         NsShutdownPackageRenderD3D12RenderDevice();
-    }
-
-    bool D3D12Backend::QueryWindowPixelSize(std::uint32_t &width, std::uint32_t &height) const
-    {
-        if (mWindow == nullptr)
-        {
-            return false;
-        }
-
-        int pixelWidth = 0;
-        int pixelHeight = 0;
-        if (!SDL_GetWindowSizeInPixels(mWindow, &pixelWidth, &pixelHeight))
-        {
-            return false;
-        }
-
-        if (pixelWidth <= 0 || pixelHeight <= 0)
-        {
-            return false;
-        }
-
-        width = static_cast<std::uint32_t>(pixelWidth);
-        height = static_cast<std::uint32_t>(pixelHeight);
-        return true;
-    }
-
-    bool D3D12Backend::CanResizeSwapChain(std::uint32_t &width, std::uint32_t &height) const
-    {
-        if (mWindow == nullptr)
-        {
-            return false;
-        }
-
-        const SDL_WindowFlags flags = SDL_GetWindowFlags(mWindow);
-        if ((flags & SDL_WINDOW_MINIMIZED) != 0)
-        {
-            return false;
-        }
-
-        return QueryWindowPixelSize(width, height);
     }
 
     void D3D12Backend::SyncTextureStates(Diligent::ITexture *backBufferTexture, Diligent::ITexture *depthBufferTexture)
@@ -250,74 +194,13 @@ namespace NoesisDiligent
         return mNoesisDevice;
     }
 
-    bool D3D12Backend::ResizeSwapChain()
+    void D3D12Backend::RenderFrameImpl(
+        Noesis::IView *view,
+        double timeSeconds,
+        Diligent::ITexture *backBufferTexture,
+        Diligent::ITexture *depthBufferTexture)
     {
-        if (mSwapChain == nullptr)
-        {
-            return false;
-        }
-
-        std::uint32_t width = 0;
-        std::uint32_t height = 0;
-        if (!CanResizeSwapChain(width, height))
-        {
-            return false;
-        }
-
-        mWindowWidth = width;
-        mWindowHeight = height;
-
-        mImmediateContext->WaitForIdle();
-        mSwapChain->Resize(mWindowWidth, mWindowHeight, Diligent::SURFACE_TRANSFORM_OPTIMAL);
-        mPendingResize = false;
-        return true;
-    }
-
-    void D3D12Backend::RenderFrame(Noesis::IView *view, double timeSeconds)
-    {
-        if (view == nullptr || mSwapChain == nullptr)
-        {
-            return;
-        }
-
-        if (mPendingResize)
-        {
-            if (!ResizeSwapChain())
-            {
-                return;
-            }
-        }
-
-        std::uint32_t drawableWidth = 0;
-        std::uint32_t drawableHeight = 0;
-        if (!CanResizeSwapChain(drawableWidth, drawableHeight))
-        {
-            return;
-        }
-
-        if (drawableWidth != mWindowWidth || drawableHeight != mWindowHeight)
-        {
-            mWindowWidth = drawableWidth;
-            mWindowHeight = drawableHeight;
-            mPendingResize = true;
-            if (!ResizeSwapChain())
-            {
-                return;
-            }
-        }
-
-        Diligent::ITexture *backBufferTexture = mSwapChain->GetCurrentBackBufferRTV()->GetTexture();
-        Diligent::ITexture *depthBufferTexture = mSwapChain->GetDepthBufferDSV()->GetTexture();
-        if (backBufferTexture == nullptr || depthBufferTexture == nullptr)
-        {
-            return;
-        }
-
         const Diligent::TextureDesc &backBufferDesc = backBufferTexture->GetDesc();
-        if (backBufferDesc.Width == 0 || backBufferDesc.Height == 0)
-        {
-            return;
-        }
 
         Diligent::ITextureView *rtvView = mSwapChain->GetCurrentBackBufferRTV();
         Diligent::ITextureView *dsvView = mSwapChain->GetDepthBufferDSV();
@@ -417,38 +300,16 @@ namespace NoesisDiligent
         mSwapChain->Present(1);
     }
 
-    void D3D12Backend::PrepareForNoesisShutdown()
+    void D3D12Backend::ReleaseBackendResources()
     {
-        if (mImmediateContext != nullptr)
-        {
-            mImmediateContext->Flush();
-            mImmediateContext->WaitForIdle();
-        }
-
-        mNoesisDevice.Reset();
-    }
-
-    void D3D12Backend::Shutdown()
-    {
-        if (mImmediateContext != nullptr)
-        {
-            mImmediateContext->WaitForIdle();
-        }
-
         mD3D12Fence = nullptr;
         mFrameFence.Release();
         mImmediateContextD3D12.Release();
         mDeviceD3D12.Release();
-        mSwapChain.Release();
-        mImmediateContext.Release();
-        mDevice.Release();
-        mNoesisDevice.Reset();
-        mWindow = nullptr;
     }
 
     int RunD3D12App(const AppStartupOptions &startupOptions)
     {
-        D3D12Backend backend;
-        return RunNoesisApp(backend, startupOptions);
+        return RunBackendApp<D3D12Backend>(startupOptions);
     }
 }
