@@ -1,0 +1,382 @@
+<Grid
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Grid.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="GlobalResources.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
+      <Style x:Key="SettingsTabRadioStyle" TargetType="RadioButton">
+        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="Foreground" Value="#AAAAAA"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="20,15"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="RadioButton">
+              <Border x:Name="Border" Background="{TemplateBinding Background}" BorderThickness="0,0,0,1">
+                <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Left" Margin="{TemplateBinding Padding}"/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                  <Setter Property="Foreground" Value="White"/>
+                  <Setter Property="FontWeight" Value="SemiBold"/>
+                  <Setter TargetName="Border" Property="Background" Value="#FF3F3F46"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter Property="Foreground" Value="White"/>
+                  <Setter TargetName="Border" Property="Background" Value="#FF2D2D30"/>
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+
+      <Style x:Key="SettingsSectionTitleStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="20"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="White"/>
+      </Style>
+
+      <Style x:Key="SettingsKeybindHeaderTextStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="#88FFFFFF"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+      </Style>
+
+      <DataTemplate x:Key="KeybindRowTemplate">
+        <Border Background="#FF262629" BorderBrush="#FF3F3F46" BorderThickness="1" CornerRadius="4" Padding="16,14" Margin="0,0,0,12">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="156"/>
+              <ColumnDefinition Width="168"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="{Binding DisplayName}"
+                       Foreground="White"
+                       FontSize="17"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"
+                       Margin="0,0,24,0"
+                       TextWrapping="NoWrap"
+                       TextTrimming="CharacterEllipsis"/>
+
+            <Border Grid.Column="1" Background="#FF343438" BorderBrush="#FF4A4A4F" BorderThickness="1" CornerRadius="4" Padding="14,10" Height="42">
+              <TextBlock Text="{Binding PrimaryBindingText}" Foreground="White" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+
+            <Border Grid.Column="2" Margin="12,0,0,0" Background="#FF343438" BorderBrush="#FF4A4A4F" BorderThickness="1" CornerRadius="4" Padding="14,10" Height="42">
+              <TextBlock Text="{Binding SecondaryBindingText}" Foreground="#FFD7D7D7" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </Grid>
+        </Border>
+      </DataTemplate>
+    </ResourceDictionary>
+  </Grid.Resources>
+
+  <Grid.Background>
+    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Offset="0" Color="#FF0F1725"/>
+      <GradientStop Offset="0.42" Color="#FF1A2740"/>
+      <GradientStop Offset="1" Color="#FF3C2214"/>
+    </LinearGradientBrush>
+  </Grid.Background>
+
+  <Grid>
+    <Rectangle Fill="#22000000"/>
+    <Grid Margin="64">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="520"/>
+        <ColumnDefinition Width="48"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <StackPanel VerticalAlignment="Center">
+        <TextBlock Style="{StaticResource Text_Header}" Text="{Binding Title}"/>
+        <TextBlock
+          Margin="0,8,0,22"
+          Style="{StaticResource Text_Label}"
+          FontSize="28"
+          Opacity="0.92"
+          Text="{Binding Subtitle}"/>
+
+        <Border
+          Margin="0,0,0,20"
+          Padding="16,14"
+          Background="#33131A22"
+          BorderBrush="#55F0C38D"
+          BorderThickness="1"
+          CornerRadius="8">
+          <StackPanel>
+            <TextBlock FontSize="13" Foreground="#FFD0B18D" Text="STATUS"/>
+            <TextBlock
+              Margin="0,4,0,0"
+              Style="{StaticResource Text_Label}"
+              Text="{Binding StatusText}"
+              TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+
+        <Button Content="Start Game" Style="{StaticResource Button_Main_Menu}" Command="{Binding StartGameCommand}"/>
+        <Button
+          Content="Quickstart (Dev)"
+          Style="{StaticResource Button_Main_Menu}"
+          Command="{Binding QuickstartCommand}"
+          Visibility="{Binding IsDevMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
+        <Button Content="Load Game" Style="{StaticResource Button_Main_Menu}" Command="{Binding LoadGameCommand}"/>
+        <Button Content="Join Game" Style="{StaticResource Button_Main_Menu}" Command="{Binding JoinGameCommand}"/>
+        <Button Content="Host Game" Style="{StaticResource Button_Main_Menu}" Command="{Binding HostGameCommand}"/>
+        <Button Content="Mods" Style="{StaticResource Button_Main_Menu}" Command="{Binding ModsCommand}"/>
+        <Button Content="Settings" Style="{StaticResource Button_Main_Menu}" Command="{Binding SettingsCommand}"/>
+        <Button Content="Exit Game" Style="{StaticResource Button_Main_Menu}" Command="{Binding QuitCommand}"/>
+      </StackPanel>
+
+      <Border
+        Grid.Column="2"
+        VerticalAlignment="Stretch"
+        Padding="36"
+        Background="#20141720"
+        BorderBrush="#33FFFFFF"
+        BorderThickness="1"
+        CornerRadius="14">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <StackPanel>
+            <TextBlock FontSize="16" Foreground="#FFD0B18D" Text="MAIN MENU"/>
+            <TextBlock
+              Margin="0,10,0,0"
+              FontSize="44"
+              FontWeight="Bold"
+              Foreground="#FFF7F0E8"
+              Text="Command Deck"/>
+            <TextBlock
+              Margin="0,16,0,0"
+              Style="{StaticResource Text_Label}"
+              FontSize="24"
+              Text="The imported main menu has been wired into the Noesis/Diligent host with native C++ view models."/>
+          </StackPanel>
+
+          <StackPanel Grid.Row="1" VerticalAlignment="Center">
+            <Border
+              Margin="0,0,0,18"
+              Padding="20"
+              Background="#221B2734"
+              BorderBrush="#334F7BA6"
+              BorderThickness="1"
+              CornerRadius="10">
+              <StackPanel>
+                <TextBlock FontSize="14" Foreground="#FF9FBADA" Text="READY STATE"/>
+                <TextBlock Margin="0,10,0,0" FontSize="26" FontWeight="SemiBold" Foreground="#FFF7F0E8" Text="Prototype Wired Up"/>
+                <TextBlock Margin="0,10,0,0" Style="{StaticResource Text_Label}" Text="Only the main menu is active. All commands are hooked to the view model, and unimplemented routes report their state in the status panel." TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+
+            <Border
+              Padding="20"
+              Background="#22A25A24"
+              BorderBrush="#44F0C38D"
+              BorderThickness="1"
+              CornerRadius="10">
+              <StackPanel>
+                <TextBlock FontSize="14" Foreground="#FFF0C38D" Text="BUILD"/>
+                <TextBlock Margin="0,10,0,0" FontSize="24" FontWeight="SemiBold" Foreground="#FFF7F0E8" Text="{Binding VersionText}"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <TextBlock
+            Grid.Row="2"
+            HorizontalAlignment="Right"
+            Foreground="#B0FFFFFF"
+            FontSize="14"
+            Text="Noesis GUI + Diligent Engine"/>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <Grid Background="#AA000000">
+      <Grid.Style>
+        <Style TargetType="Grid">
+          <Setter Property="Visibility" Value="Collapsed"/>
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding IsSettingsOpen}" Value="True">
+              <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Grid.Style>
+
+      <Border Width="900" Height="600" Background="#FF1E1E1E" BorderBrush="#FF3F3F46" BorderThickness="1" CornerRadius="4" DataContext="{Binding Settings}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Text="SETTINGS" Style="{StaticResource Text_Header}" FontSize="32" Margin="20,20,0,20" HorizontalAlignment="Left"/>
+
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="200"/>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Background="#FF252526">
+              <RadioButton x:Name="TabGame" Content="Game" GroupName="SettingsTabs" IsChecked="True" Style="{StaticResource SettingsTabRadioStyle}"/>
+              <RadioButton x:Name="TabGraphics" Content="Graphics" GroupName="SettingsTabs" Style="{StaticResource SettingsTabRadioStyle}"/>
+              <RadioButton x:Name="TabSound" Content="Sound" GroupName="SettingsTabs" Style="{StaticResource SettingsTabRadioStyle}"/>
+              <RadioButton x:Name="TabKeybinds" Content="Keybinds" GroupName="SettingsTabs" Style="{StaticResource SettingsTabRadioStyle}"/>
+            </StackPanel>
+
+            <Border Grid.Column="1" Width="1" Background="#FF3F3F46" Margin="0,10"/>
+
+            <Grid Grid.Column="2" Margin="20">
+              <StackPanel>
+                <StackPanel.Style>
+                  <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsChecked, ElementName=TabGame}" Value="True">
+                        <Setter Property="Visibility" Value="Visible"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </StackPanel.Style>
+
+                <TextBlock Text="General" Style="{StaticResource SettingsSectionTitleStyle}" Margin="0,0,0,10"/>
+                <CheckBox Content="Developer Mode" IsChecked="{Binding IsDevMode}" Foreground="White" FontSize="16" Margin="0,10"/>
+                <TextBlock Text="Enables debug features and quickstart options." Foreground="#88FFFFFF" FontSize="14" Margin="30,0,0,0" TextWrapping="Wrap"/>
+
+                <CheckBox Content="Show FPS/TPS counter" IsChecked="{Binding ShowPerformanceStats}" Foreground="White" FontSize="16" Margin="0,22,0,10"/>
+                <TextBlock Text="Shows a compact performance overlay in the app." Foreground="#88FFFFFF" FontSize="14" Margin="30,0,0,0" TextWrapping="Wrap"/>
+              </StackPanel>
+
+              <StackPanel>
+                <StackPanel.Style>
+                  <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsChecked, ElementName=TabGraphics}" Value="True">
+                        <Setter Property="Visibility" Value="Visible"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </StackPanel.Style>
+
+                <TextBlock Text="Display" Style="{StaticResource SettingsSectionTitleStyle}" Margin="0,0,0,10"/>
+                <TextBlock Text="Resolution" Style="{StaticResource Text_Label}" FontSize="16"/>
+                <ComboBox SelectedIndex="{Binding ResolutionIndex}" Width="300" HorizontalAlignment="Left" Height="40" FontSize="16">
+                  <ComboBoxItem Content="1920 x 1080 (1080p)"/>
+                  <ComboBoxItem Content="1280 x 720 (720p)"/>
+                  <ComboBoxItem Content="2560 x 1440 (2K)"/>
+                </ComboBox>
+
+                <TextBlock Text="Window Mode" Style="{StaticResource Text_Label}" FontSize="16" Margin="0,20,0,0"/>
+                <ComboBox SelectedIndex="{Binding FullscreenModeIndex}" Width="300" HorizontalAlignment="Left" Height="40" FontSize="16">
+                  <ComboBoxItem Content="Windowed"/>
+                  <ComboBoxItem Content="Borderless"/>
+                  <ComboBoxItem Content="Exclusive Fullscreen"/>
+                </ComboBox>
+              </StackPanel>
+
+              <StackPanel>
+                <StackPanel.Style>
+                  <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsChecked, ElementName=TabSound}" Value="True">
+                        <Setter Property="Visibility" Value="Visible"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </StackPanel.Style>
+
+                <TextBlock Text="Volume" Style="{StaticResource SettingsSectionTitleStyle}" Margin="0,0,0,10"/>
+                <TextBlock Text="Master Volume" Style="{StaticResource Text_Label}" FontSize="16"/>
+                <Grid Width="300" HorizontalAlignment="Left">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Slider Value="{Binding MasterVolume}" Minimum="0" Maximum="1" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <TextBlock Grid.Column="1" Text="{Binding MasterVolume, StringFormat={}{0:P0}}" Foreground="White" VerticalAlignment="Center"/>
+                </Grid>
+              </StackPanel>
+
+              <Grid>
+                <Grid.Style>
+                  <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsChecked, ElementName=TabKeybinds}" Value="True">
+                        <Setter Property="Visibility" Value="Visible"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Grid.Style>
+
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Controls" Style="{StaticResource SettingsSectionTitleStyle}" Margin="0,0,0,10"/>
+                <TextBlock Grid.Row="1" Text="This keybind section is visual-only in the current prototype. The layout mirrors the source settings panel, but rebinding is intentionally disabled." Foreground="#88FFFFFF" FontSize="14" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                <Border Grid.Row="2" Background="#FF1F1F22" BorderBrush="#FF3F3F46" BorderThickness="1" CornerRadius="4" Padding="16">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="12"/>
+                      <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="156"/>
+                        <ColumnDefinition Width="168"/>
+                      </Grid.ColumnDefinitions>
+
+                      <TextBlock Grid.Column="0" Text="Action" Style="{StaticResource SettingsKeybindHeaderTextStyle}" Margin="0,0,24,0"/>
+                      <TextBlock Grid.Column="1" Text="Primary" Style="{StaticResource SettingsKeybindHeaderTextStyle}" HorizontalAlignment="Center" Width="156"/>
+                      <TextBlock Grid.Column="2" Text="Secondary" Style="{StaticResource SettingsKeybindHeaderTextStyle}" HorizontalAlignment="Center" Width="156" Margin="12,0,0,0"/>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                      <ItemsControl ItemsSource="{Binding Keybinds}" ItemTemplate="{StaticResource KeybindRowTemplate}"/>
+                    </ScrollViewer>
+                  </Grid>
+                </Border>
+
+                <TextBlock Grid.Row="3" Margin="0,12,0,0" Text="A data model is in place for the keybind list, but editing actions are intentionally omitted here." Foreground="#88FFFFFF" FontSize="13" TextWrapping="Wrap"/>
+              </Grid>
+            </Grid>
+          </Grid>
+
+          <Border Grid.Row="2" Background="#FF252526" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" Padding="20,10">
+            <Button Content="Close" Command="{Binding CloseCommand}" Style="{DynamicResource Button_Main_Menu}" HorizontalAlignment="Right" Width="150" Height="40" Margin="0" FontSize="18"/>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</Grid>

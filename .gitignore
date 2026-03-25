@@ -1,0 +1,86 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Linker files
+*.ilk
+
+# Debugger Files
+*.pdb
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# debug information files
+*.dwo
+
+# CMake build directories
+build/
+cmake-build-*/
+out/
+
+# IDE files
+.vscode/
+.vs/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+
+# CodeQL analysis artifacts
+_codeql_build_dir/
+_codeql_detected_source_root
+
+# Dotnet build artifacts
+bin/
+obj/
+
+# Vendor specific files
+ThirdParty/NoesisSDK/*
+ThirdParty/steamworks_sdk/*
+!ThirdParty/steamworks_sdk/.gitkeep
+ThirdParty/NextMU/*
+
+# Testing files
+Testing/*
+
+# Obsidian files
+*/.obsidian/workspace.json
+
+# Python
+__pycache__
+
+# Random Stuff
+example_code/*
