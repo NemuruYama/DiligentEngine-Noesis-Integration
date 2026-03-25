@@ -56,10 +56,11 @@ namespace NoesisDiligent
             {2560, 1440}
         };
         constexpr int kResolutionPresetCount = sizeof(kResolutionPresets) / sizeof(kResolutionPresets[0]);
+        constexpr int kDefaultResolutionPresetIndex = 1;
 
         struct WindowSettingsState
         {
-            int resolutionIndex = 0;
+            int resolutionIndex = kDefaultResolutionPresetIndex;
             int windowModeIndex = static_cast<int>(WindowMode::Borderless);
         };
 
@@ -109,13 +110,18 @@ namespace NoesisDiligent
 
             ~AppRuntimeGuard()
             {
-                if (backendInitialized)
+                if (view != nullptr)
                 {
-                    backend.PrepareForNoesisShutdown();
+                    view->GetRenderer()->Shutdown();
                 }
 
                 view.Reset();
                 renderDevice.Reset();
+
+                if (backendInitialized)
+                {
+                    backend.PrepareForNoesisShutdown();
+                }
 
                 if (noesisInitialized)
                 {
@@ -386,7 +392,7 @@ namespace NoesisDiligent
         {
             if (index < 0 || index >= kResolutionPresetCount)
             {
-                return kResolutionPresets[0];
+                return kResolutionPresets[kDefaultResolutionPresetIndex];
             }
 
             return kResolutionPresets[index];
@@ -414,17 +420,24 @@ namespace NoesisDiligent
             return bestIndex;
         }
 
-        int GetLaunchResolutionPresetIndex(SDL_Window& window)
+        int GetWindowResolutionPresetIndex(SDL_Window& window)
         {
             std::uint32_t width = 0;
             std::uint32_t height = 0;
-            if (QueryLaunchDisplayResolution(window, width, height))
+            PollWindowSize(window, width, height);
+            return FindResolutionPresetIndex(width, height);
+        }
+
+        int GetLaunchResolutionPresetIndex(SDL_Window& window, bool useDisplayResolution)
+        {
+            std::uint32_t width = 0;
+            std::uint32_t height = 0;
+            if (useDisplayResolution && QueryLaunchDisplayResolution(window, width, height))
             {
                 return FindResolutionPresetIndex(width, height);
             }
 
-            PollWindowSize(window, width, height);
-            return FindResolutionPresetIndex(width, height);
+            return GetWindowResolutionPresetIndex(window);
         }
 
         int GetCurrentWindowModeIndex(SDL_Window& window)
@@ -693,7 +706,10 @@ namespace NoesisDiligent
                 quitEvent.type = SDL_EVENT_QUIT;
                 SDL_PushEvent(&quitEvent);
             };
-            callbacks.initialResolutionIndex = GetLaunchResolutionPresetIndex(window);
+            callbacks.initialResolutionIndex = GetLaunchResolutionPresetIndex(
+                window,
+                GetCurrentWindowModeIndex(window) == static_cast<int>(WindowMode::Fullscreen)
+            );
             settingsState->resolutionIndex = callbacks.initialResolutionIndex;
             callbacks.initialWindowModeIndex = GetCurrentWindowModeIndex(window);
             settingsState->windowModeIndex = callbacks.initialWindowModeIndex;
@@ -757,7 +773,11 @@ namespace NoesisDiligent
             return 1;
         }
 
-        const int initialResolutionIndex = GetLaunchResolutionPresetIndex(*window);
+        const bool useLaunchDisplayResolution = startupOptions.windowMode == WindowMode::Fullscreen;
+        const int initialResolutionIndex = useLaunchDisplayResolution ?
+            GetLaunchResolutionPresetIndex(*window, true) :
+            kDefaultResolutionPresetIndex;
+            
         if (!ApplyWindowMode(*window, static_cast<int>(startupOptions.windowMode), initialResolutionIndex))
         {
             std::fprintf(stderr, "Failed to apply startup window mode\n");
