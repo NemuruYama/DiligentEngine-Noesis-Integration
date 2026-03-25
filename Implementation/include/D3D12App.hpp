@@ -17,14 +17,14 @@ namespace NoesisDiligent
     class D3D12Backend final : public DiligentNoesisBackendBase
     {
     public:
-        std::uint64_t GetSDLWindowFlags() const override;
+        std::uint64_t GetWindowFlags() const override;
 
         void RegisterNoesisPackages() override;
         void ShutdownNoesisPackages() override;
         Noesis::Ptr<Noesis::RenderDevice> CreateRenderDevice() override;
 
     private:
-        bool InitDiligent(SDL_Window &window);
+        bool InitDiligent(PlatformWindow& window) override;
         void RenderFrameImpl(Noesis::IView *view, double timeSeconds, Diligent::ITexture *backBufferTexture, Diligent::ITexture *depthBufferTexture) override;
         void ReleaseBackendResources() override;
         void SyncTextureStates(Diligent::ITexture *backBufferTexture, Diligent::ITexture *depthBufferTexture);

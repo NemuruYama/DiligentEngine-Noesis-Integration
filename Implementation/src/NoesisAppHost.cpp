@@ -6,14 +6,13 @@
 #include <NsApp/LocalTextureProvider.h>
 #include <NsApp/LocalXamlProvider.h>
 #include <NsApp/ThemeProviders.h>
-#include <NsGui/InputEnums.h>
 #include <NsGui/Uri.h>
 #include <NsGui/IntegrationAPI.h>
 #include <NsGui/IRenderer.h>
 #include <NsGui/FrameworkElement.h>
 
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_keyboard.h>
+#include "PlatformNoesisInput.hpp"
+#include "SDLPlatform.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -39,7 +38,6 @@ namespace NoesisDiligent
     namespace
     {
         using Clock = std::chrono::steady_clock;
-        using WindowPtr = std::unique_ptr<SDL_Window, void (*)(SDL_Window*)>;
 
         constexpr std::uint32_t kInitialWidth = 1280;
         constexpr std::uint32_t kInitialHeight = 720;
@@ -72,7 +70,7 @@ namespace NoesisDiligent
             {
                 if (initialized)
                 {
-                    SDL_Quit();
+                    PlatformQuit();
                 }
             }
 
@@ -81,7 +79,7 @@ namespace NoesisDiligent
 
         struct TextInputGuard
         {
-            explicit TextInputGuard(SDL_Window& windowHandle) : window(windowHandle)
+            explicit TextInputGuard(PlatformWindow& windowHandle) : window(windowHandle)
             {
             }
 
@@ -89,11 +87,11 @@ namespace NoesisDiligent
             {
                 if (started)
                 {
-                    SDL_StopTextInput(&window.get());
+                    window.get().StopTextInput();
                 }
             }
 
-            std::reference_wrapper<SDL_Window> window;
+            std::reference_wrapper<PlatformWindow> window;
             bool started = false;
         };
 
@@ -153,168 +151,6 @@ namespace NoesisDiligent
             bool noesisInitialized = false;
         };
 
-        Noesis::Key TranslateKey(SDL_Keycode key)
-        {
-            if (key >= SDLK_0 && key <= SDLK_9)
-            {
-                return static_cast<Noesis::Key>(Noesis::Key_D0 + (key - SDLK_0));
-            }
-
-            if (key >= SDLK_A && key <= SDLK_Z)
-            {
-                return static_cast<Noesis::Key>(Noesis::Key_A + (key - SDLK_A));
-            }
-
-            if (key >= SDLK_F1 && key <= SDLK_F12)
-            {
-                return static_cast<Noesis::Key>(Noesis::Key_F1 + (key - SDLK_F1));
-            }
-
-            switch (key)
-            {
-            case SDLK_BACKSPACE:
-                return Noesis::Key_Back;
-            case SDLK_TAB:
-                return Noesis::Key_Tab;
-            case SDLK_CLEAR:
-                return Noesis::Key_Clear;
-            case SDLK_RETURN:
-            case SDLK_KP_ENTER:
-            case SDLK_RETURN2:
-                return Noesis::Key_Return;
-            case SDLK_PAUSE:
-                return Noesis::Key_Pause;
-            case SDLK_CAPSLOCK:
-                return Noesis::Key_CapsLock;
-            case SDLK_ESCAPE:
-                return Noesis::Key_Escape;
-            case SDLK_SPACE:
-                return Noesis::Key_Space;
-            case SDLK_PAGEUP:
-                return Noesis::Key_PageUp;
-            case SDLK_PAGEDOWN:
-                return Noesis::Key_PageDown;
-            case SDLK_END:
-                return Noesis::Key_End;
-            case SDLK_HOME:
-                return Noesis::Key_Home;
-            case SDLK_LEFT:
-                return Noesis::Key_Left;
-            case SDLK_UP:
-                return Noesis::Key_Up;
-            case SDLK_RIGHT:
-                return Noesis::Key_Right;
-            case SDLK_DOWN:
-                return Noesis::Key_Down;
-            case SDLK_INSERT:
-                return Noesis::Key_Insert;
-            case SDLK_DELETE:
-                return Noesis::Key_Delete;
-            case SDLK_NUMLOCKCLEAR:
-                return Noesis::Key_NumLock;
-            case SDLK_SCROLLLOCK:
-                return Noesis::Key_Scroll;
-            case SDLK_LSHIFT:
-                return Noesis::Key_LeftShift;
-            case SDLK_RSHIFT:
-                return Noesis::Key_RightShift;
-            case SDLK_LCTRL:
-                return Noesis::Key_LeftCtrl;
-            case SDLK_RCTRL:
-                return Noesis::Key_RightCtrl;
-            case SDLK_LALT:
-                return Noesis::Key_LeftAlt;
-            case SDLK_RALT:
-                return Noesis::Key_RightAlt;
-            case SDLK_LGUI:
-                return Noesis::Key_LWin;
-            case SDLK_RGUI:
-                return Noesis::Key_RWin;
-            case SDLK_APPLICATION:
-                return Noesis::Key_Apps;
-            case SDLK_KP_0:
-                return Noesis::Key_NumPad0;
-            case SDLK_KP_1:
-                return Noesis::Key_NumPad1;
-            case SDLK_KP_2:
-                return Noesis::Key_NumPad2;
-            case SDLK_KP_3:
-                return Noesis::Key_NumPad3;
-            case SDLK_KP_4:
-                return Noesis::Key_NumPad4;
-            case SDLK_KP_5:
-                return Noesis::Key_NumPad5;
-            case SDLK_KP_6:
-                return Noesis::Key_NumPad6;
-            case SDLK_KP_7:
-                return Noesis::Key_NumPad7;
-            case SDLK_KP_8:
-                return Noesis::Key_NumPad8;
-            case SDLK_KP_9:
-                return Noesis::Key_NumPad9;
-            case SDLK_KP_MULTIPLY:
-                return Noesis::Key_Multiply;
-            case SDLK_KP_PLUS:
-                return Noesis::Key_Add;
-            case SDLK_KP_MINUS:
-                return Noesis::Key_Subtract;
-            case SDLK_KP_DECIMAL:
-                return Noesis::Key_Decimal;
-            case SDLK_KP_DIVIDE:
-                return Noesis::Key_Divide;
-            case SDLK_F10:
-                return Noesis::Key_F10;
-            default:
-                return Noesis::Key_None;
-            }
-        }
-
-        Noesis::MouseButton ToNoesisMouseButton(Uint8 button)
-        {
-            switch (button)
-            {
-            case SDL_BUTTON_LEFT:
-                return Noesis::MouseButton_Left;
-            case SDL_BUTTON_RIGHT:
-                return Noesis::MouseButton_Right;
-            case SDL_BUTTON_MIDDLE:
-                return Noesis::MouseButton_Middle;
-            case SDL_BUTTON_X1:
-                return Noesis::MouseButton_XButton1;
-            case SDL_BUTTON_X2:
-                return Noesis::MouseButton_XButton2;
-            default:
-                return Noesis::MouseButton_Left;
-            }
-        }
-
-        std::uint32_t DecodeNextUtf8Codepoint(const char *&text)
-        {
-            const unsigned char lead = static_cast<unsigned char>(*text++);
-            if ((lead & 0x80u) == 0)
-            {
-                return lead;
-            }
-
-            if ((lead & 0xE0u) == 0xC0u)
-            {
-                const unsigned char trail0 = static_cast<unsigned char>(*text++);
-                return ((lead & 0x1Fu) << 6) | (trail0 & 0x3Fu);
-            }
-
-            if ((lead & 0xF0u) == 0xE0u)
-            {
-                const unsigned char trail0 = static_cast<unsigned char>(*text++);
-                const unsigned char trail1 = static_cast<unsigned char>(*text++);
-                return ((lead & 0x0Fu) << 12) | ((trail0 & 0x3Fu) << 6) | (trail1 & 0x3Fu);
-            }
-
-            const unsigned char trail0 = static_cast<unsigned char>(*text++);
-            const unsigned char trail1 = static_cast<unsigned char>(*text++);
-            const unsigned char trail2 = static_cast<unsigned char>(*text++);
-            return ((lead & 0x07u) << 18) | ((trail0 & 0x3Fu) << 12) | ((trail1 & 0x3Fu) << 6) | (trail2 & 0x3Fu);
-        }
-
         void InitCommonNoesisPackages()
         {
             NsRegisterReflectionAppProviders();
@@ -329,11 +165,11 @@ namespace NoesisDiligent
             NsShutdownPackageAppProviders();
         }
 
-        void PollWindowSize(SDL_Window& window, std::uint32_t &width, std::uint32_t &height)
+        void PollWindowSize(PlatformWindow& window, std::uint32_t &width, std::uint32_t &height)
         {
             int pixelWidth = 0;
             int pixelHeight = 0;
-            if (SDL_GetWindowSizeInPixels(&window, &pixelWidth, &pixelHeight))
+            if (window.GetSizeInPixels(pixelWidth, pixelHeight))
             {
                 width = static_cast<std::uint32_t>(pixelWidth);
                 height = static_cast<std::uint32_t>(pixelHeight);
@@ -348,40 +184,29 @@ namespace NoesisDiligent
             }
         }
 
-        bool QueryLaunchDisplayResolution(SDL_Window& window, std::uint32_t& width, std::uint32_t& height)
+        bool QueryLaunchDisplayResolution(PlatformWindow& window, std::uint32_t& width, std::uint32_t& height)
         {
-            const SDL_DisplayID display = SDL_GetDisplayForWindow(&window);
-            if (display == 0)
+            int displayWidth = 0;
+            int displayHeight = 0;
+            if (!window.GetDesktopDisplayMode(displayWidth, displayHeight))
             {
                 return false;
             }
 
-            const SDL_DisplayMode* displayMode = SDL_GetDesktopDisplayMode(display);
-            if (displayMode == nullptr || displayMode->w <= 0 || displayMode->h <= 0)
-            {
-                return false;
-            }
-
-            width = static_cast<std::uint32_t>(displayMode->w);
-            height = static_cast<std::uint32_t>(displayMode->h);
+            width = static_cast<std::uint32_t>(displayWidth);
+            height = static_cast<std::uint32_t>(displayHeight);
             return true;
         }
 
-        bool QueryWindowDisplayBounds(SDL_Window& window, SDL_Rect& bounds)
+        bool QueryWindowDisplayBounds(PlatformWindow& window, int& bx, int& by, int& bw, int& bh)
         {
-            const SDL_DisplayID display = SDL_GetDisplayForWindow(&window);
-            if (display == 0)
-            {
-                return false;
-            }
-
-            return SDL_GetDisplayBounds(display, &bounds);
+            return window.GetDisplayBounds(bx, by, bw, bh);
         }
 
         void InstallLocalAssetProviders()
         {
-            const char* basePath = SDL_GetBasePath();
-            std::string assetsPath = basePath ? std::string(basePath) + "assets" : "assets";
+            std::string basePath = PlatformGetBasePath();
+            std::string assetsPath = basePath.empty() ? "assets" : basePath + "assets";
 
             Noesis::GUI::SetXamlProvider(Noesis::MakePtr<NoesisApp::LocalXamlProvider>(assetsPath.c_str()));
             Noesis::GUI::SetTextureProvider(Noesis::MakePtr<NoesisApp::LocalTextureProvider>(assetsPath.c_str()));
@@ -420,7 +245,7 @@ namespace NoesisDiligent
             return bestIndex;
         }
 
-        int GetWindowResolutionPresetIndex(SDL_Window& window)
+        int GetWindowResolutionPresetIndex(PlatformWindow& window)
         {
             std::uint32_t width = 0;
             std::uint32_t height = 0;
@@ -428,7 +253,7 @@ namespace NoesisDiligent
             return FindResolutionPresetIndex(width, height);
         }
 
-        int GetLaunchResolutionPresetIndex(SDL_Window& window, bool useDisplayResolution)
+        int GetLaunchResolutionPresetIndex(PlatformWindow& window, bool useDisplayResolution)
         {
             std::uint32_t width = 0;
             std::uint32_t height = 0;
@@ -440,17 +265,17 @@ namespace NoesisDiligent
             return GetWindowResolutionPresetIndex(window);
         }
 
-        int GetCurrentWindowModeIndex(SDL_Window& window)
+        int GetCurrentWindowModeIndex(PlatformWindow& window)
         {
-            const SDL_WindowFlags flags = SDL_GetWindowFlags(&window);
-            if ((flags & SDL_WINDOW_FULLSCREEN) != 0)
+            const std::uint64_t flags = window.GetFlags();
+            if ((flags & PlatformWindowFlag::Fullscreen) != 0)
             {
-                return SDL_GetWindowFullscreenMode(&window) == nullptr ?
-                    static_cast<int>(WindowMode::Borderless) :
-                    static_cast<int>(WindowMode::Fullscreen);
+                return window.HasExclusiveFullscreenMode() ?
+                    static_cast<int>(WindowMode::Fullscreen) :
+                    static_cast<int>(WindowMode::Borderless);
             }
 
-            if ((flags & SDL_WINDOW_BORDERLESS) != 0)
+            if ((flags & PlatformWindowFlag::Borderless) != 0)
             {
                 return static_cast<int>(WindowMode::Borderless);
             }
@@ -458,36 +283,36 @@ namespace NoesisDiligent
             return static_cast<int>(WindowMode::Windowed);
         }
 
-        bool LeaveFullscreen(SDL_Window& window)
+        bool LeaveFullscreen(PlatformWindow& window)
         {
-            if (!SDL_SetWindowFullscreen(&window, false))
+            if (!window.SetFullscreen(false))
             {
-                std::fprintf(stderr, "SDL_SetWindowFullscreen(false) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetFullscreen(false) failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            if (!SDL_SetWindowMouseGrab(&window, false))
+            if (!window.SetMouseGrab(false))
             {
-                std::fprintf(stderr, "SDL_SetWindowMouseGrab(false) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetMouseGrab(false) failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            SDL_SyncWindow(&window);
+            window.Sync();
             return true;
         }
 
-        bool ApplyExclusiveFullscreenMouseCapture(SDL_Window& window)
+        bool ApplyExclusiveFullscreenMouseCapture(PlatformWindow& window)
         {
 #if NOESIS_DILIGENT_EXCLUSIVE_FULLSCREEN_CAPTURES_MOUSE
-            if (!SDL_SetWindowMouseGrab(&window, true))
+            if (!window.SetMouseGrab(true))
             {
-                std::fprintf(stderr, "SDL_SetWindowMouseGrab(true) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetMouseGrab(true) failed: %s\n", PlatformGetError());
                 return false;
             }
 #else
-            if (!SDL_SetWindowMouseGrab(&window, false))
+            if (!window.SetMouseGrab(false))
             {
-                std::fprintf(stderr, "SDL_SetWindowMouseGrab(false) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetMouseGrab(false) failed: %s\n", PlatformGetError());
                 return false;
             }
 #endif
@@ -495,27 +320,27 @@ namespace NoesisDiligent
             return true;
         }
 
-        bool CenterWindowOnDisplay(SDL_Window& window, int width, int height)
+        bool CenterWindowOnDisplay(PlatformWindow& window, int width, int height)
         {
-            SDL_Rect bounds{};
-            if (!QueryWindowDisplayBounds(window, bounds))
+            int bx = 0, by = 0, bw = 0, bh = 0;
+            if (!QueryWindowDisplayBounds(window, bx, by, bw, bh))
             {
-                std::fprintf(stderr, "SDL_GetDisplayBounds failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "GetDisplayBounds failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            const int x = bounds.x + ((bounds.w - width) / 2);
-            const int y = bounds.y + ((bounds.h - height) / 2);
-            if (!SDL_SetWindowPosition(&window, x, y))
+            const int x = bx + ((bw - width) / 2);
+            const int y = by + ((bh - height) / 2);
+            if (!window.SetPosition(x, y))
             {
-                std::fprintf(stderr, "SDL_SetWindowPosition failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetPosition failed: %s\n", PlatformGetError());
                 return false;
             }
 
             return true;
         }
 
-        bool IsBorderlessFullscreenResolution(SDL_Window& window, int resolutionIndex)
+        bool IsBorderlessFullscreenResolution(PlatformWindow& window, int resolutionIndex)
         {
             const ResolutionPreset& preset = GetResolutionPreset(resolutionIndex);
             std::uint32_t displayWidth = 0;
@@ -529,7 +354,7 @@ namespace NoesisDiligent
                    preset.height == static_cast<int>(displayHeight);
         }
 
-        bool ApplyWindowedResolution(SDL_Window& window, int resolutionIndex)
+        bool ApplyWindowedResolution(PlatformWindow& window, int resolutionIndex)
         {
             const ResolutionPreset& preset = GetResolutionPreset(resolutionIndex);
             if (!LeaveFullscreen(window))
@@ -537,24 +362,24 @@ namespace NoesisDiligent
                 return false;
             }
 
-            if (!SDL_SetWindowBordered(&window, true))
+            if (!window.SetBordered(true))
             {
-                std::fprintf(stderr, "SDL_SetWindowBordered(true) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetBordered(true) failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            if (!SDL_SetWindowSize(&window, preset.width, preset.height))
+            if (!window.SetSize(preset.width, preset.height))
             {
-                std::fprintf(stderr, "SDL_SetWindowSize failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetSize failed: %s\n", PlatformGetError());
                 return false;
             }
 
             CenterWindowOnDisplay(window, preset.width, preset.height);
-            SDL_SyncWindow(&window);
+            window.Sync();
             return true;
         }
 
-        bool ApplyBorderlessWindowed(SDL_Window& window, int resolutionIndex)
+        bool ApplyBorderlessWindowed(PlatformWindow& window, int resolutionIndex)
         {
             const ResolutionPreset& preset = GetResolutionPreset(resolutionIndex);
             if (!LeaveFullscreen(window))
@@ -562,15 +387,15 @@ namespace NoesisDiligent
                 return false;
             }
 
-            if (!SDL_SetWindowBordered(&window, false))
+            if (!window.SetBordered(false))
             {
-                std::fprintf(stderr, "SDL_SetWindowBordered(false) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetBordered(false) failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            if (!SDL_SetWindowSize(&window, preset.width, preset.height))
+            if (!window.SetSize(preset.width, preset.height))
             {
-                std::fprintf(stderr, "SDL_SetWindowSize failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetSize failed: %s\n", PlatformGetError());
                 return false;
             }
 
@@ -579,40 +404,40 @@ namespace NoesisDiligent
                 return false;
             }
 
-            SDL_SyncWindow(&window);
+            window.Sync();
             return true;
         }
 
-        bool ApplyBorderlessFullscreen(SDL_Window& window)
+        bool ApplyBorderlessFullscreen(PlatformWindow& window)
         {
             if (!LeaveFullscreen(window))
             {
                 return false;
             }
 
-            if (!SDL_SetWindowBordered(&window, false))
+            if (!window.SetBordered(false))
             {
-                std::fprintf(stderr, "SDL_SetWindowBordered(false) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetBordered(false) failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            if (!SDL_SetWindowFullscreenMode(&window, nullptr))
+            if (!window.ClearFullscreenMode())
             {
-                std::fprintf(stderr, "SDL_SetWindowFullscreenMode(nullptr) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "ClearFullscreenMode failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            if (!SDL_SetWindowFullscreen(&window, true))
+            if (!window.SetFullscreen(true))
             {
-                std::fprintf(stderr, "SDL_SetWindowFullscreen(true) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetFullscreen(true) failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            SDL_SyncWindow(&window);
+            window.Sync();
             return true;
         }
 
-        bool ApplyBorderlessMode(SDL_Window& window, int resolutionIndex)
+        bool ApplyBorderlessMode(PlatformWindow& window, int resolutionIndex)
         {
             if (IsBorderlessFullscreenResolution(window, resolutionIndex))
             {
@@ -622,7 +447,7 @@ namespace NoesisDiligent
             return ApplyBorderlessWindowed(window, resolutionIndex);
         }
 
-        bool ApplyExclusiveFullscreen(SDL_Window& window, int resolutionIndex)
+        bool ApplyExclusiveFullscreen(PlatformWindow& window, int resolutionIndex)
         {
             const ResolutionPreset& preset = GetResolutionPreset(resolutionIndex);
             if (!LeaveFullscreen(window))
@@ -630,29 +455,15 @@ namespace NoesisDiligent
                 return false;
             }
 
-            const SDL_DisplayID display = SDL_GetDisplayForWindow(&window);
-            if (display == 0)
+            if (!window.SetExclusiveFullscreenMode(preset.width, preset.height))
             {
-                std::fprintf(stderr, "SDL_GetDisplayForWindow failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetExclusiveFullscreenMode failed: %s\n", PlatformGetError());
                 return false;
             }
 
-            SDL_DisplayMode closestMode{};
-            if (!SDL_GetClosestFullscreenDisplayMode(display, preset.width, preset.height, 0.0f, true, &closestMode))
+            if (!window.SetFullscreen(true))
             {
-                std::fprintf(stderr, "SDL_GetClosestFullscreenDisplayMode failed: %s\n", SDL_GetError());
-                return false;
-            }
-
-            if (!SDL_SetWindowFullscreenMode(&window, &closestMode))
-            {
-                std::fprintf(stderr, "SDL_SetWindowFullscreenMode(exclusive) failed: %s\n", SDL_GetError());
-                return false;
-            }
-
-            if (!SDL_SetWindowFullscreen(&window, true))
-            {
-                std::fprintf(stderr, "SDL_SetWindowFullscreen(true) failed: %s\n", SDL_GetError());
+                std::fprintf(stderr, "SetFullscreen(true) failed: %s\n", PlatformGetError());
                 return false;
             }
 
@@ -661,11 +472,11 @@ namespace NoesisDiligent
                 return false;
             }
 
-            SDL_SyncWindow(&window);
+            window.Sync();
             return true;
         }
 
-        bool ApplyWindowMode(SDL_Window& window, int windowModeIndex, int resolutionIndex)
+        bool ApplyWindowMode(PlatformWindow& window, int windowModeIndex, int resolutionIndex)
         {
             switch (windowModeIndex)
             {
@@ -680,7 +491,7 @@ namespace NoesisDiligent
             }
         }
 
-        bool ApplyResolution(SDL_Window& window, int resolutionIndex)
+        bool ApplyResolution(PlatformWindow& window, int resolutionIndex)
         {
             const int windowModeIndex = GetCurrentWindowModeIndex(window);
             switch (windowModeIndex)
@@ -696,15 +507,13 @@ namespace NoesisDiligent
             }
         }
 
-        Noesis::Ptr<Noesis::IView> CreateMainMenuView(SDL_Window& window)
+        Noesis::Ptr<Noesis::IView> CreateMainMenuView(PlatformWindow& window)
         {
             Visuals::MainMenuCallbacks callbacks;
             auto settingsState = std::make_shared<WindowSettingsState>();
             callbacks.onQuit = []()
             {
-                SDL_Event quitEvent{};
-                quitEvent.type = SDL_EVENT_QUIT;
-                SDL_PushEvent(&quitEvent);
+                PlatformPushQuitEvent();
             };
             callbacks.initialResolutionIndex = GetLaunchResolutionPresetIndex(
                 window,
@@ -747,9 +556,9 @@ namespace NoesisDiligent
     int RunNoesisApp(NoesisAppBackend &backend, const AppStartupOptions& startupOptions)
     {
         SDLSystemGuard sdlSystem;
-        if (!SDL_Init(SDL_INIT_VIDEO))
+        if (!PlatformInit())
         {
-            std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+            std::fprintf(stderr, "PlatformInit failed: %s\n", PlatformGetError());
             return 1;
         }
         sdlSystem.initialized = true;
@@ -764,30 +573,30 @@ namespace NoesisDiligent
         Noesis::Ptr<Noesis::RenderDevice> renderDevice;
         AppRuntimeGuard runtimeGuard{backend, view, renderDevice};
 
-        const std::uint64_t windowFlags = static_cast<std::uint64_t>(SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY) |
-                                          backend.GetSDLWindowFlags();
-        WindowPtr window{SDL_CreateWindow("NoesisDiligent", static_cast<int>(kInitialWidth), static_cast<int>(kInitialHeight), windowFlags), SDL_DestroyWindow};
-        if (window == nullptr)
+        const std::uint64_t windowFlags = PlatformWindowFlag::Resizable | PlatformWindowFlag::HighPixelDensity |
+                                          backend.GetWindowFlags();
+        PlatformWindow window{"NoesisDiligent", static_cast<int>(kInitialWidth), static_cast<int>(kInitialHeight), windowFlags};
+        if (!window.IsValid())
         {
-            std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+            std::fprintf(stderr, "PlatformWindow creation failed: %s\n", PlatformGetError());
             return 1;
         }
 
         const bool useLaunchDisplayResolution = startupOptions.useDisplayResolution;
         const int initialResolutionIndex = useLaunchDisplayResolution ?
-            GetLaunchResolutionPresetIndex(*window, true) :
+            GetLaunchResolutionPresetIndex(window, true) :
             kDefaultResolutionPresetIndex;
             
-        if (!ApplyWindowMode(*window, static_cast<int>(startupOptions.windowMode), initialResolutionIndex))
+        if (!ApplyWindowMode(window, static_cast<int>(startupOptions.windowMode), initialResolutionIndex))
         {
             std::fprintf(stderr, "Failed to apply startup window mode\n");
         }
 
-        TextInputGuard textInput{*window};
+        TextInputGuard textInput{window};
 
-        PollWindowSize(*window, windowWidth, windowHeight);
+        PollWindowSize(window, windowWidth, windowHeight);
 
-        if (!backend.Initialize(*window, windowWidth, windowHeight))
+        if (!backend.Initialize(window, windowWidth, windowHeight))
         {
             return 1;
         }
@@ -821,7 +630,7 @@ namespace NoesisDiligent
         NoesisApp::SetThemeProviders();
         Noesis::GUI::LoadApplicationResources(NoesisApp::Theme::DarkBlue());
 
-        view = CreateMainMenuView(*window);
+        view = CreateMainMenuView(window);
         if (view == nullptr)
         {
             std::fprintf(stderr, "Failed to create Noesis view\n");
@@ -834,9 +643,9 @@ namespace NoesisDiligent
         view->Activate();
         success = true;
 
-        if (!SDL_StartTextInput(window.get()))
+        if (!window.StartTextInput())
         {
-            std::fprintf(stderr, "SDL_StartTextInput failed: %s\n", SDL_GetError());
+            std::fprintf(stderr, "StartTextInput failed: %s\n", PlatformGetError());
         }
         else
         {
@@ -847,99 +656,95 @@ namespace NoesisDiligent
         running = true;
         while (running)
         {
-            SDL_Event event;
-            while (SDL_PollEvent(&event))
+            PlatformEvent event;
+            while (PlatformPollEvent(event))
             {
                 switch (event.type)
                 {
-                case SDL_EVENT_QUIT:
+                case PlatformEventType::Quit:
                     running = false;
                     break;
-                case SDL_EVENT_WINDOW_RESIZED:
-                case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
-                    PollWindowSize(*window, windowWidth, windowHeight);
+                case PlatformEventType::WindowResized:
+                case PlatformEventType::WindowPixelSizeChanged:
+                    PollWindowSize(window, windowWidth, windowHeight);
                     backend.UpdateSize(windowWidth, windowHeight);
                     UpdateViewSize(view, windowWidth, windowHeight);
                     break;
-                case SDL_EVENT_WINDOW_FOCUS_GAINED:
+                case PlatformEventType::WindowFocusGained:
                     if (view != nullptr)
                     {
                         view->Activate();
                     }
                     break;
-                case SDL_EVENT_WINDOW_FOCUS_LOST:
+                case PlatformEventType::WindowFocusLost:
                     if (view != nullptr)
                     {
                         view->Deactivate();
                     }
                     break;
-                case SDL_EVENT_MOUSE_MOTION:
+                case PlatformEventType::MouseMotion:
                     if (view != nullptr)
                     {
                         view->MouseMove(static_cast<int>(event.motion.x), static_cast<int>(event.motion.y));
                     }
                     break;
-                case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                case PlatformEventType::MouseButtonDown:
                     if (view != nullptr)
                     {
                         if (event.button.clicks > 1)
                         {
-                            view->MouseDoubleClick(static_cast<int>(event.button.x), static_cast<int>(event.button.y), ToNoesisMouseButton(event.button.button));
+                            view->MouseDoubleClick(static_cast<int>(event.button.x), static_cast<int>(event.button.y), PlatformMouseButtonToNoesisButton(event.button.button));
                         }
                         else
                         {
-                            view->MouseButtonDown(static_cast<int>(event.button.x), static_cast<int>(event.button.y), ToNoesisMouseButton(event.button.button));
+                            view->MouseButtonDown(static_cast<int>(event.button.x), static_cast<int>(event.button.y), PlatformMouseButtonToNoesisButton(event.button.button));
                         }
                     }
                     break;
-                case SDL_EVENT_MOUSE_BUTTON_UP:
+                case PlatformEventType::MouseButtonUp:
                     if (view != nullptr)
                     {
-                        view->MouseButtonUp(static_cast<int>(event.button.x), static_cast<int>(event.button.y), ToNoesisMouseButton(event.button.button));
+                        view->MouseButtonUp(static_cast<int>(event.button.x), static_cast<int>(event.button.y), PlatformMouseButtonToNoesisButton(event.button.button));
                     }
                     break;
-                case SDL_EVENT_MOUSE_WHEEL:
+                case PlatformEventType::MouseWheel:
                     if (view != nullptr)
                     {
-                        if (event.wheel.integer_y != 0)
+                        if (event.wheel.integerY != 0)
                         {
-                            view->MouseWheel(static_cast<int>(event.wheel.mouse_x), static_cast<int>(event.wheel.mouse_y), event.wheel.integer_y * 120);
+                            view->MouseWheel(static_cast<int>(event.wheel.mouseX), static_cast<int>(event.wheel.mouseY), event.wheel.integerY * 120);
                         }
 
-                        if (event.wheel.integer_x != 0)
+                        if (event.wheel.integerX != 0)
                         {
-                            view->MouseHWheel(static_cast<int>(event.wheel.mouse_x), static_cast<int>(event.wheel.mouse_y), event.wheel.integer_x * 120);
+                            view->MouseHWheel(static_cast<int>(event.wheel.mouseX), static_cast<int>(event.wheel.mouseY), event.wheel.integerX * 120);
                         }
                     }
                     break;
-                case SDL_EVENT_KEY_DOWN:
+                case PlatformEventType::KeyDown:
                     if (view != nullptr)
                     {
-                        const Noesis::Key key = TranslateKey(event.key.key);
+                        const Noesis::Key key = PlatformKeyCodeToNoesisKey(event.key.key);
                         if (key != Noesis::Key_None)
                         {
                             view->KeyDown(key);
                         }
                     }
                     break;
-                case SDL_EVENT_KEY_UP:
+                case PlatformEventType::KeyUp:
                     if (view != nullptr)
                     {
-                        const Noesis::Key key = TranslateKey(event.key.key);
+                        const Noesis::Key key = PlatformKeyCodeToNoesisKey(event.key.key);
                         if (key != Noesis::Key_None)
                         {
                             view->KeyUp(key);
                         }
                     }
                     break;
-                case SDL_EVENT_TEXT_INPUT:
-                    if (view != nullptr && event.text.text != nullptr)
+                case PlatformEventType::TextInput:
+                    if (view != nullptr && event.text[0] != '\0')
                     {
-                        const char *text = event.text.text;
-                        while (*text != '\0')
-                        {
-                            view->Char(DecodeNextUtf8Codepoint(text));
-                        }
+                        SendUtf8TextToNoesis(*view, event.text);
                     }
                     break;
                 default:

@@ -5,10 +5,10 @@
 #include <NsGui/IView.h>
 #include <NsRender/RenderDevice.h>
 
-struct SDL_Window;
-
 namespace NoesisDiligent
 {
+    class PlatformWindow;
+
     enum class WindowMode : int
     {
         Windowed = 0,
@@ -18,7 +18,7 @@ namespace NoesisDiligent
 
     struct AppStartupOptions
     {
-        WindowMode windowMode = WindowMode::Borderless;
+        WindowMode windowMode = WindowMode::Windowed;
         bool useDisplayResolution = false;
     };
 
@@ -27,8 +27,8 @@ namespace NoesisDiligent
     public:
         virtual ~NoesisAppBackend() = default;
 
-        virtual std::uint64_t GetSDLWindowFlags() const = 0;
-        virtual bool Initialize(SDL_Window& window, std::uint32_t width, std::uint32_t height) = 0;
+        virtual std::uint64_t GetWindowFlags() const = 0;
+        virtual bool Initialize(PlatformWindow& window, std::uint32_t width, std::uint32_t height) = 0;
         virtual void UpdateSize(std::uint32_t width, std::uint32_t height) = 0;
         virtual void RegisterNoesisPackages() = 0;
         virtual void ShutdownNoesisPackages() = 0;

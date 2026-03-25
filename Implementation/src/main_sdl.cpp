@@ -3,12 +3,16 @@
 #include <NsGui/IntegrationAPI.h>
 #include <NsGui/IRenderer.h>
 #include <NsGui/IView.h>
-#include <NsGui/InputEnums.h>
 #include <NsGui/Uri.h>
 #include <NsCore/Package.h>
 #include <NsRender/RenderContext.h>
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_properties.h>
+
+#include "PlatformNoesisInput.hpp"
+#include "SDLPlatform.hpp"
+
+#include <cstdio>
+
+using namespace NoesisDiligent;
 
 extern "C" void NsRegisterReflectionAppProviders();
 extern "C" void NsInitPackageAppProviders();
@@ -54,36 +58,17 @@ namespace
         NsShutdownPackageAppProviders();
     }
 
-    Noesis::MouseButton ToNoesisMouseButton(Uint8 button)
-    {
-        switch (button)
-        {
-        case SDL_BUTTON_LEFT:
-            return Noesis::MouseButton_Left;
-        case SDL_BUTTON_RIGHT:
-            return Noesis::MouseButton_Right;
-        case SDL_BUTTON_MIDDLE:
-            return Noesis::MouseButton_Middle;
-        case SDL_BUTTON_X1:
-            return Noesis::MouseButton_XButton1;
-        case SDL_BUTTON_X2:
-            return Noesis::MouseButton_XButton2;
-        default:
-            return Noesis::MouseButton_Left;
-        }
-    }
-
-    void UpdateViewSize(SDL_Window *window)
+    void UpdateViewSize(PlatformWindow &window)
     {
         int width = 0;
         int height = 0;
-        if (SDL_GetWindowSizeInPixels(window, &width, &height) && gView != nullptr)
+        if (window.GetSizeInPixels(width, height) && gView != nullptr)
         {
             gView->SetSize(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
         }
     }
 
-    bool NoesisInit(SDL_Window *window)
+    bool NoesisInit(PlatformWindow &window)
     {
         InitNoesisPackages();
 
@@ -124,11 +109,10 @@ namespace
         gView = Noesis::GUI::CreateView(xaml);
         gView->SetFlags(Noesis::RenderFlags_PPAA | Noesis::RenderFlags_LCD);
 
-        SDL_PropertiesID properties = SDL_GetWindowProperties(window);
-        void *nativeWindow = SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+        void *nativeWindow = window.GetNativeWindowHandle();
         if (nativeWindow == nullptr)
         {
-            SDL_Log("Failed to get native Win32 window handle from SDL: %s", SDL_GetError());
+            std::fprintf(stderr, "Failed to get native window handle: %s\n", PlatformGetError());
             return false;
         }
 
@@ -141,11 +125,11 @@ namespace
         return true;
     }
 
-    void RenderFrame(SDL_Window *window, double timeSeconds)
+    void RenderFrame(PlatformWindow &window, double timeSeconds)
     {
         int width = 0;
         int height = 0;
-        if (!SDL_GetWindowSizeInPixels(window, &width, &height))
+        if (!window.GetSizeInPixels(width, height))
         {
             return;
         }
@@ -167,80 +151,113 @@ int main(int argc, char **argv)
     (void)argc;
     (void)argv;
 
-    if (!SDL_Init(SDL_INIT_VIDEO))
+    if (!PlatformInit())
     {
-        SDL_Log("SDL_Init failed: %s", SDL_GetError());
+        std::fprintf(stderr, "PlatformInit failed: %s\n", PlatformGetError());
         return 1;
     }
 
-    SDL_Window *window = SDL_CreateWindow("NoesisDiligent", 1280, 720, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
-    if (window == nullptr)
+    PlatformWindow window{"NoesisDiligent", 1280, 720, PlatformWindowFlag::Vulkan | PlatformWindowFlag::Resizable};
+    if (!window.IsValid())
     {
-        SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
-        SDL_Quit();
+        std::fprintf(stderr, "PlatformWindow creation failed: %s\n", PlatformGetError());
+        PlatformQuit();
         return 1;
     }
 
     if (!NoesisInit(window))
     {
-        SDL_DestroyWindow(window);
-        SDL_Quit();
+        PlatformQuit();
         return 1;
+    }
+
+    bool textInputStarted = false;
+    if (!window.StartTextInput())
+    {
+        std::fprintf(stderr, "StartTextInput failed: %s\n", PlatformGetError());
+    }
+    else
+    {
+        textInputStarted = true;
     }
 
     bool running = true;
     while (running)
     {
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
+        PlatformEvent event;
+        while (PlatformPollEvent(event))
         {
             switch (event.type)
             {
-            case SDL_EVENT_QUIT:
+            case PlatformEventType::Quit:
                 running = false;
                 break;
-            case SDL_EVENT_WINDOW_RESIZED:
-            case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+            case PlatformEventType::WindowResized:
+            case PlatformEventType::WindowPixelSizeChanged:
                 UpdateViewSize(window);
                 gRenderContext->Resize();
                 break;
-            case SDL_EVENT_MOUSE_MOTION:
+            case PlatformEventType::MouseMotion:
                 gView->MouseMove(static_cast<int>(event.motion.x), static_cast<int>(event.motion.y));
                 break;
-            case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            case PlatformEventType::MouseButtonDown:
                 if (event.button.clicks > 1)
                 {
                     gView->MouseDoubleClick(
                         static_cast<int>(event.button.x),
                         static_cast<int>(event.button.y),
-                        ToNoesisMouseButton(event.button.button));
+                        PlatformMouseButtonToNoesisButton(event.button.button));
                 }
                 else
                 {
                     gView->MouseButtonDown(
                         static_cast<int>(event.button.x),
                         static_cast<int>(event.button.y),
-                        ToNoesisMouseButton(event.button.button));
+                        PlatformMouseButtonToNoesisButton(event.button.button));
                 }
                 break;
-            case SDL_EVENT_MOUSE_BUTTON_UP:
+            case PlatformEventType::MouseButtonUp:
                 gView->MouseButtonUp(
                     static_cast<int>(event.button.x),
                     static_cast<int>(event.button.y),
-                    ToNoesisMouseButton(event.button.button));
+                    PlatformMouseButtonToNoesisButton(event.button.button));
                 break;
-            case SDL_EVENT_MOUSE_WHEEL:
+            case PlatformEventType::MouseWheel:
                 gView->MouseWheel(
-                    static_cast<int>(event.wheel.mouse_x),
-                    static_cast<int>(event.wheel.mouse_y),
-                    event.wheel.integer_y);
+                    static_cast<int>(event.wheel.mouseX),
+                    static_cast<int>(event.wheel.mouseY),
+                    event.wheel.integerY);
+                break;
+            case PlatformEventType::KeyDown:
+            {
+                const Noesis::Key key = PlatformKeyCodeToNoesisKey(event.key.key);
+                if (key != Noesis::Key_None)
+                {
+                    gView->KeyDown(key);
+                }
+                break;
+            }
+            case PlatformEventType::KeyUp:
+            {
+                const Noesis::Key key = PlatformKeyCodeToNoesisKey(event.key.key);
+                if (key != Noesis::Key_None)
+                {
+                    gView->KeyUp(key);
+                }
+                break;
+            }
+            case PlatformEventType::TextInput:
+                if (event.text[0] != '\0')
+                {
+                    SendUtf8TextToNoesis(*gView, event.text);
+                }
                 break;
             default:
                 break;
             }
         }
 
-        RenderFrame(window, static_cast<double>(SDL_GetTicks()) / 1000.0);
+        RenderFrame(window, static_cast<double>(PlatformGetTicks()) / 1000.0);
     }
 
     if (gRenderContext != nullptr)
@@ -253,7 +270,11 @@ int main(int argc, char **argv)
     Noesis::GUI::Shutdown();
     ShutdownNoesisPackages();
 
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    if (textInputStarted)
+    {
+        window.StopTextInput();
+    }
+
+    PlatformQuit();
     return 0;
 }

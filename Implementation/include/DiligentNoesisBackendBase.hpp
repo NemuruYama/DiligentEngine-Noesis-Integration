@@ -13,7 +13,7 @@ namespace NoesisDiligent
     class DiligentNoesisBackendBase : public NoesisAppBackend
     {
     public:
-        bool Initialize(SDL_Window& window, std::uint32_t width, std::uint32_t height) final override;
+        bool Initialize(PlatformWindow& window, std::uint32_t width, std::uint32_t height) final override;
         void UpdateSize(std::uint32_t width, std::uint32_t height) final override;
         void RenderFrame(Noesis::IView *view, double timeSeconds) final override;
         void PrepareForNoesisShutdown() final override;
@@ -26,7 +26,7 @@ namespace NoesisDiligent
             std::uint32_t height = 0;
         };
 
-        virtual bool InitDiligent(SDL_Window& window) = 0;
+        virtual bool InitDiligent(PlatformWindow& window) = 0;
         virtual bool OnSwapChainResized();
         virtual void RenderFrameImpl(Noesis::IView *view, double timeSeconds, Diligent::ITexture *backBufferTexture, Diligent::ITexture *depthBufferTexture) = 0;
         virtual void ReleaseBackendResources() = 0;
@@ -40,7 +40,7 @@ namespace NoesisDiligent
         std::uint32_t mWindowWidth = 0;
         std::uint32_t mWindowHeight = 0;
         std::uint64_t mFrameNumber = 1;
-        SDL_Window *mWindow = nullptr;
+        PlatformWindow *mWindow = nullptr;
 
         Noesis::Ptr<Noesis::RenderDevice> mNoesisDevice;
 

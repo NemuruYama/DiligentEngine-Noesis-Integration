@@ -1,10 +1,10 @@
 #include "DiligentNoesisBackendBase.hpp"
 
-#include <SDL3/SDL.h>
+#include "SDLPlatform.hpp"
 
 namespace NoesisDiligent
 {
-    bool DiligentNoesisBackendBase::Initialize(SDL_Window& window, std::uint32_t width, std::uint32_t height)
+    bool DiligentNoesisBackendBase::Initialize(PlatformWindow& window, std::uint32_t width, std::uint32_t height)
     {
         mWindow = &window;
         mWindowWidth = width;
@@ -29,7 +29,7 @@ namespace NoesisDiligent
 
         int pixelWidth = 0;
         int pixelHeight = 0;
-        if (!SDL_GetWindowSizeInPixels(mWindow, &pixelWidth, &pixelHeight))
+        if (!mWindow->GetSizeInPixels(pixelWidth, pixelHeight))
         {
             return false;
         }
@@ -51,8 +51,8 @@ namespace NoesisDiligent
             return false;
         }
 
-        const SDL_WindowFlags flags = SDL_GetWindowFlags(mWindow);
-        if ((flags & SDL_WINDOW_MINIMIZED) != 0)
+        const std::uint64_t flags = mWindow->GetFlags();
+        if ((flags & PlatformWindowFlag::Minimized) != 0)
         {
             return false;
         }

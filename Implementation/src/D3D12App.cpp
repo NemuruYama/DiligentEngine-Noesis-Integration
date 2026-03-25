@@ -1,10 +1,9 @@
 #include "D3D12App.hpp"
 
+#include "SDLPlatform.hpp"
+
 #include <NsGui/IRenderer.h>
 #include <NsRender/D3D12Factory.h>
-
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_properties.h>
 
 #include <d3d12.h>
 
@@ -57,7 +56,7 @@ namespace NoesisDiligent
         }
     }
 
-    std::uint64_t D3D12Backend::GetSDLWindowFlags() const
+    std::uint64_t D3D12Backend::GetWindowFlags() const
     {
         return 0;
     }
@@ -88,13 +87,12 @@ namespace NoesisDiligent
         }
     }
 
-    bool D3D12Backend::InitDiligent(SDL_Window &window)
+    bool D3D12Backend::InitDiligent(PlatformWindow &window)
     {
-        SDL_PropertiesID properties = SDL_GetWindowProperties(&window);
-        void *nativeWindow = SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+        void *nativeWindow = window.GetNativeWindowHandle();
         if (nativeWindow == nullptr)
         {
-            std::fprintf(stderr, "Failed to get native window handle from SDL: %s\n", SDL_GetError());
+            std::fprintf(stderr, "Failed to get native window handle: %s\n", PlatformGetError());
             return false;
         }
 

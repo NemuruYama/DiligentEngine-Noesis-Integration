@@ -1,11 +1,9 @@
 #include "VulkanApp.hpp"
 
+#include "SDLPlatform.hpp"
+
 #include <NsGui/IRenderer.h>
 #include <NsRender/VKFactory.h>
-
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_properties.h>
-#include <SDL3/SDL_vulkan.h>
 
 #include <vulkan/vulkan.h>
 
@@ -66,9 +64,9 @@ namespace NoesisDiligent
         }
     }
 
-    std::uint64_t VulkanBackend::GetSDLWindowFlags() const
+    std::uint64_t VulkanBackend::GetWindowFlags() const
     {
-        return SDL_WINDOW_VULKAN;
+        return PlatformWindowFlag::Vulkan;
     }
 
     void VulkanBackend::RegisterNoesisPackages()
@@ -85,10 +83,10 @@ namespace NoesisDiligent
     bool VulkanBackend::LoadAppVulkanFunctions()
     {
         mVkGetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
-            SDL_Vulkan_GetVkGetInstanceProcAddr());
+            PlatformGetVulkanInstanceProcAddr());
         if (mVkGetInstanceProcAddr == VK_NULL_HANDLE)
         {
-            std::fprintf(stderr, "Failed to get vkGetInstanceProcAddr from SDL: %s\n", SDL_GetError());
+            std::fprintf(stderr, "Failed to get vkGetInstanceProcAddr: %s\n", PlatformGetError());
             return false;
         }
 
@@ -387,13 +385,12 @@ namespace NoesisDiligent
         return &mBackBufferTargets.back();
     }
 
-    bool VulkanBackend::InitDiligent(SDL_Window& window)
+    bool VulkanBackend::InitDiligent(PlatformWindow& window)
     {
-        SDL_PropertiesID properties = SDL_GetWindowProperties(&window);
-        void *nativeWindow = SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+        void *nativeWindow = window.GetNativeWindowHandle();
         if (nativeWindow == nullptr)
         {
-            std::fprintf(stderr, "Failed to get native window handle from SDL: %s\n", SDL_GetError());
+            std::fprintf(stderr, "Failed to get native window handle: %s\n", PlatformGetError());
             return false;
         }
 
@@ -465,7 +462,7 @@ namespace NoesisDiligent
 
         if (instanceInfo.vkGetInstanceProcAddr == VK_NULL_HANDLE)
         {
-            std::fprintf(stderr, "Failed to get vkGetInstanceProcAddr from SDL: %s\n", SDL_GetError());
+            std::fprintf(stderr, "Failed to get vkGetInstanceProcAddr\n");
             return nullptr;
         }
 
