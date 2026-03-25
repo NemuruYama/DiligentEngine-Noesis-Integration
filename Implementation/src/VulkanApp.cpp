@@ -62,6 +62,38 @@ namespace NoesisDiligent
                 return VK_IMAGE_ASPECT_STENCIL_BIT;
             }
         }
+
+        void BindRenderTargetsAndViewport(Diligent::IDeviceContext *immediateContext,
+                                          Diligent::ITextureView *backBufferView,
+                                          Diligent::ITextureView *depthBufferView,
+                                          std::uint32_t width,
+                                          std::uint32_t height)
+        {
+            if (immediateContext == nullptr || backBufferView == nullptr || depthBufferView == nullptr)
+            {
+                return;
+            }
+
+            Diligent::ITextureView *renderTargets[] = {backBufferView};
+            immediateContext->SetRenderTargets(1,
+                                               renderTargets,
+                                               depthBufferView,
+                                               Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+            Diligent::Viewport viewport{};
+            viewport.TopLeftX = 0.0f;
+            viewport.TopLeftY = 0.0f;
+            viewport.Width = static_cast<float>(width);
+            viewport.Height = static_cast<float>(height);
+            viewport.MinDepth = 0.0f;
+            viewport.MaxDepth = 1.0f;
+            immediateContext->SetViewports(1, &viewport, width, height);
+
+            Diligent::Rect scissor{};
+            scissor.right = static_cast<Diligent::Int32>(width);
+            scissor.bottom = static_cast<Diligent::Int32>(height);
+            immediateContext->SetScissorRects(1, &scissor, width, height);
+        }
     }
 
     std::uint64_t VulkanBackend::GetWindowFlags() const
@@ -223,7 +255,7 @@ namespace NoesisDiligent
 
         attachments[0].format = mDepthFormatVk;
         attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -232,7 +264,7 @@ namespace NoesisDiligent
 
         attachments[1].format = mColorFormatVk;
         attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-        attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -514,15 +546,47 @@ namespace NoesisDiligent
         mImmediateContextVk->TransitionImageLayout(backBufferTexture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         mImmediateContextVk->TransitionImageLayout(depthBufferTexture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
+        const std::uint64_t frameNumber = mFrameNumber++;
+
         NoesisApp::VKFactory::RecordingInfo recordingInfo{};
         recordingInfo.commandBuffer = mImmediateContextVk->GetVkCommandBuffer();
-        recordingInfo.frameNumber = mFrameNumber++;
+        recordingInfo.frameNumber = frameNumber;
         recordingInfo.safeFrameNumber = safeFrameNumber;
         NoesisApp::VKFactory::SetCommandBuffer(mNoesisDevice, recordingInfo);
 
         view->Update(timeSeconds);
         view->GetRenderer()->UpdateRenderTree();
         view->GetRenderer()->RenderOffscreen();
+
+        Diligent::ITextureView *backBufferView = mSwapChain->GetCurrentBackBufferRTV();
+        Diligent::ITextureView *depthBufferView = mSwapChain->GetDepthBufferDSV();
+        if (backBufferView == nullptr || depthBufferView == nullptr)
+        {
+            return;
+        }
+
+        BindRenderTargetsAndViewport(mImmediateContext, backBufferView, depthBufferView, extent.width, extent.height);
+
+        const float clearColor[] = {0.05f, 0.16f, 0.27f, 1.0f};
+        mImmediateContext->ClearRenderTarget(backBufferView,
+                                             clearColor,
+                                             Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        mImmediateContext->ClearDepthStencil(depthBufferView,
+                                             Diligent::CLEAR_DEPTH_FLAG | Diligent::CLEAR_STENCIL_FLAG,
+                                             1.0f,
+                                             0,
+                                             Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+        if (false)
+        {
+            // Render3DScene();
+        }
+
+        mImmediateContext->Flush();
+        mImmediateContext->InvalidateState();
+
+        recordingInfo.commandBuffer = mImmediateContextVk->GetVkCommandBuffer();
+        NoesisApp::VKFactory::SetCommandBuffer(mNoesisDevice, recordingInfo);
 
         VkClearValue clearValues[2] = {};
         clearValues[0].depthStencil.depth = 1.0f;
