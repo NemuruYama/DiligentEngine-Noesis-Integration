@@ -773,7 +773,7 @@ namespace NoesisDiligent
             return 1;
         }
 
-        const bool useLaunchDisplayResolution = startupOptions.windowMode == WindowMode::Fullscreen;
+        const bool useLaunchDisplayResolution = startupOptions.useDisplayResolution;
         const int initialResolutionIndex = useLaunchDisplayResolution ?
             GetLaunchResolutionPresetIndex(*window, true) :
             kDefaultResolutionPresetIndex;

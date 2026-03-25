@@ -21,6 +21,13 @@ namespace
         AppStartupOptions startupOptions;
     };
 
+    enum class RequestedWindowMode
+    {
+        Default,
+        Windowed,
+        Fullscreen
+    };
+
     bool ParseBackendValue(const char *value, RenderBackend &backend)
     {
         if (std::strcmp(value, "vulkan") == 0)
@@ -38,38 +45,59 @@ namespace
         return false;
     }
 
-    bool TryParseWindowMode(const char* argument, AppStartupOptions& startupOptions)
+    bool TryParseWindowMode(const char* argument, RequestedWindowMode& requestedWindowMode, bool& borderlessRequested)
     {
         if (std::strcmp(argument, "--windowed") == 0)
         {
-            startupOptions.windowMode = WindowMode::Windowed;
+            requestedWindowMode = RequestedWindowMode::Windowed;
             return true;
         }
 
         if (std::strcmp(argument, "--borderless") == 0)
         {
-            startupOptions.windowMode = WindowMode::Borderless;
+            borderlessRequested = true;
             return true;
         }
 
         if (std::strcmp(argument, "--fullscreen") == 0)
         {
-            startupOptions.windowMode = WindowMode::Fullscreen;
+            requestedWindowMode = RequestedWindowMode::Fullscreen;
             return true;
         }
 
         return false;
     }
 
+    WindowMode ResolveWindowMode(RequestedWindowMode requestedWindowMode, bool borderlessRequested, WindowMode defaultWindowMode)
+    {
+        switch (requestedWindowMode)
+        {
+        case RequestedWindowMode::Windowed:
+            return borderlessRequested ? WindowMode::Borderless : WindowMode::Windowed;
+        case RequestedWindowMode::Fullscreen:
+            return borderlessRequested ? WindowMode::Borderless : WindowMode::Fullscreen;
+        case RequestedWindowMode::Default:
+        default:
+            return defaultWindowMode;
+        }
+    }
+
+    bool ShouldUseDisplayResolution(RequestedWindowMode requestedWindowMode)
+    {
+        return requestedWindowMode == RequestedWindowMode::Fullscreen;
+    }
+
     bool TryParseLaunchOptions(int argc, char **argv, LaunchOptions &options)
     {
         options = {};
+        RequestedWindowMode requestedWindowMode = RequestedWindowMode::Default;
+        bool borderlessRequested = false;
 
         for (int argumentIndex = 1; argumentIndex < argc; ++argumentIndex)
         {
             const char *argument = argv[argumentIndex];
 
-            if (TryParseWindowMode(argument, options.startupOptions))
+            if (TryParseWindowMode(argument, requestedWindowMode, borderlessRequested))
             {
                 continue;
             }
@@ -120,6 +148,12 @@ namespace
             std::fprintf(stderr, "Unknown argument '%s'\n", argument);
             return false;
         }
+
+        options.startupOptions.windowMode = ResolveWindowMode(
+            requestedWindowMode,
+            borderlessRequested,
+            options.startupOptions.windowMode);
+        options.startupOptions.useDisplayResolution = ShouldUseDisplayResolution(requestedWindowMode);
 
         return true;
     }
