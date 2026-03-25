@@ -6,6 +6,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/NoesisGUI.cmake)
 set(CLIENT_SOURCES
     src/NoesisAppHost.cpp
     src/VulkanApp.cpp
+    src/D3D12App.cpp
     ${CMAKE_SOURCE_DIR}/Visuals/src/KeybindRowViewModel.cpp
     ${CMAKE_SOURCE_DIR}/Visuals/src/MainMenuViewModel.cpp
     ${CMAKE_SOURCE_DIR}/Visuals/src/MainMenuVisuals.cpp
@@ -16,6 +17,7 @@ set(CLIENT_SOURCES
 set(CLIENT_HEADERS
     include/NoesisAppHost.hpp
     include/VulkanApp.hpp
+    include/D3D12App.hpp
     ${CMAKE_SOURCE_DIR}/Visuals/include/KeybindRowViewModel.hpp
     ${CMAKE_SOURCE_DIR}/Visuals/include/MainMenuViewModel.hpp
     ${CMAKE_SOURCE_DIR}/Visuals/include/MainMenuVisuals.hpp

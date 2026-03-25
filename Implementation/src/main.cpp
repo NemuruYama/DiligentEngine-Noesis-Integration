@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "D3D12App.hpp"
 #include "VulkanApp.hpp"
 
 namespace
@@ -134,8 +135,7 @@ int main(int argc, char **argv)
 
     if (options.backend == RenderBackend::D3D12)
     {
-        std::puts("DX12 is not yet implemented");
-        return 0;
+        return NoesisDiligent::RunD3D12App(options.startupOptions);
     }
 
     return NoesisDiligent::RunVulkanApp(options.startupOptions);
