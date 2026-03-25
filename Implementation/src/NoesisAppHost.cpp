@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <functional>
 #include <memory>
+#include <string>
 #include <utility>
 
 #ifndef NOESIS_DILIGENT_EXCLUSIVE_FULLSCREEN_CAPTURES_MOUSE
@@ -373,9 +374,12 @@ namespace NoesisDiligent
 
         void InstallLocalAssetProviders()
         {
-            Noesis::GUI::SetXamlProvider(Noesis::MakePtr<NoesisApp::LocalXamlProvider>("assets"));
-            Noesis::GUI::SetTextureProvider(Noesis::MakePtr<NoesisApp::LocalTextureProvider>("assets"));
-            Noesis::GUI::SetFontProvider(Noesis::MakePtr<NoesisApp::LocalFontProvider>("assets"));
+            const char* basePath = SDL_GetBasePath();
+            std::string assetsPath = basePath ? std::string(basePath) + "assets" : "assets";
+
+            Noesis::GUI::SetXamlProvider(Noesis::MakePtr<NoesisApp::LocalXamlProvider>(assetsPath.c_str()));
+            Noesis::GUI::SetTextureProvider(Noesis::MakePtr<NoesisApp::LocalTextureProvider>(assetsPath.c_str()));
+            Noesis::GUI::SetFontProvider(Noesis::MakePtr<NoesisApp::LocalFontProvider>(assetsPath.c_str()));
         }
 
         const ResolutionPreset& GetResolutionPreset(int index)
