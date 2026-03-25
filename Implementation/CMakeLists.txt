@@ -3,15 +3,49 @@ project(Implementation LANGUAGES C CXX)
 set(ENGINE_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 include(${CMAKE_CURRENT_SOURCE_DIR}/NoesisGUI.cmake)
 
+set(VISUALS_SOURCES
+    ${CMAKE_SOURCE_DIR}/Visuals/src/KeybindRowViewModel.cpp
+    ${CMAKE_SOURCE_DIR}/Visuals/src/MainMenuViewModel.cpp
+    ${CMAKE_SOURCE_DIR}/Visuals/src/MainMenuVisuals.cpp
+    ${CMAKE_SOURCE_DIR}/Visuals/src/SettingsViewModel.cpp
+)
+
+set(VISUALS_HEADERS
+    ${CMAKE_SOURCE_DIR}/Visuals/include/KeybindRowViewModel.hpp
+    ${CMAKE_SOURCE_DIR}/Visuals/include/MainMenuViewModel.hpp
+    ${CMAKE_SOURCE_DIR}/Visuals/include/MainMenuVisuals.hpp
+    ${CMAKE_SOURCE_DIR}/Visuals/include/SettingsViewModel.hpp
+)
+
+set(IMPLEMENTATION_SDL_NOESIS_SOURCES
+    ${_NS_APP_SRC}/NotifyPropertyChangedBase.cpp
+    ${_NS_APP_SRC}/DelegateCommand.cpp
+    ${_NS_APP_PROV_SRC}/LocalFontProvider.cpp
+    ${_NS_APP_PROV_SRC}/EmbeddedFontProvider.cpp
+    ${_NS_APP_PROV_SRC}/Find.cpp
+    ${_NS_APP_PROV_SRC}/App.Providers.cpp
+    ${_NS_APP_PROV_SRC}/EmbeddedXamlProvider.cpp
+    ${_NS_APP_PROV_SRC}/LocalXamlProvider.cpp
+    ${_NS_APP_PROV_SRC}/FileTextureProvider.cpp
+    ${_NS_APP_PROV_SRC}/LocalTextureProvider.cpp
+    ${_NS_APP_PROV_SRC}/FastLZ.cpp
+    ${_NS_APP_SRC}/RichText.cpp
+    ${_NS_APP_THEME_SRC}/App.Theme.cpp
+    ${_NS_APP_THEME_SRC}/ThemeProviders.cpp
+    ${_NS_RENDERCONTEXT_SRC}/Image.cpp
+    ${_NS_RENDERCONTEXT_SRC}/Render.RenderContext.cpp
+    ${_NS_RENDERCONTEXT_SRC}/RenderContext.cpp
+    ${_NS_VK_SRC}/Render.VKRenderDevice.cpp
+    ${_NS_VK_SRC}/VKRenderDevice.cpp
+    ${_NS_VK_CONTEXT_SRC}/Render.VKRenderContext.cpp
+    ${_NS_VK_CONTEXT_SRC}/VKRenderContext.cpp
+)
+
 set(CLIENT_SOURCES
     src/DiligentNoesisBackendBase.cpp
     src/NoesisAppHost.cpp
     src/VulkanApp.cpp
     src/D3D12App.cpp
-    ${CMAKE_SOURCE_DIR}/Visuals/src/KeybindRowViewModel.cpp
-    ${CMAKE_SOURCE_DIR}/Visuals/src/MainMenuViewModel.cpp
-    ${CMAKE_SOURCE_DIR}/Visuals/src/MainMenuVisuals.cpp
-    ${CMAKE_SOURCE_DIR}/Visuals/src/SettingsViewModel.cpp
     ${NOESISGUI_APP_SOURCES}
 )
 
@@ -20,12 +54,9 @@ set(CLIENT_HEADERS
     include/NoesisAppHost.hpp
     include/VulkanApp.hpp
     include/D3D12App.hpp
-    ${CMAKE_SOURCE_DIR}/Visuals/include/KeybindRowViewModel.hpp
-    ${CMAKE_SOURCE_DIR}/Visuals/include/MainMenuViewModel.hpp
-    ${CMAKE_SOURCE_DIR}/Visuals/include/MainMenuVisuals.hpp
-    ${CMAKE_SOURCE_DIR}/Visuals/include/SettingsViewModel.hpp
 )
 
+add_library(ImplementationVisuals STATIC ${VISUALS_SOURCES} ${VISUALS_HEADERS})
 add_library(ImplementationLib STATIC ${CLIENT_SOURCES} ${CLIENT_HEADERS})
 
 if(NOT DEFINED NS_LICENSE_NAME)
@@ -35,6 +66,26 @@ endif()
 if(NOT DEFINED NS_LICENSE_KEY)
     set(NS_LICENSE_KEY "" CACHE STRING "Noesis license key")
 endif()
+
+target_compile_definitions(ImplementationVisuals
+    PUBLIC
+        NS_APP_APPLICATIONLAUNCHER_API=
+        NS_APP_PROVIDERS_API=
+        NS_APP_THEME_API=
+        $<$<PLATFORM_ID:Windows>:NOMINMAX>
+)
+
+target_include_directories(ImplementationVisuals
+    PUBLIC
+        ${CMAKE_SOURCE_DIR}/Visuals/include
+        ${NOESISGUI_INCLUDE_DIR}
+        ${NOESISGUI_APP_INCLUDE_DIR}
+)
+
+target_link_libraries(ImplementationVisuals
+    PUBLIC
+        NoesisSDK
+)
 
 target_compile_definitions(ImplementationLib
     PUBLIC
@@ -80,6 +131,7 @@ target_sources(ImplementationLib
 
 target_link_libraries(ImplementationLib
     PUBLIC
+        ImplementationVisuals
         DiligentCore::Common
         DiligentCore::GraphicsEngine
         DiligentCore::GraphicsTools
@@ -110,6 +162,44 @@ set(IMPLEMENTATION_SDL_APP_SOURCES
 add_executable(ImplementationApp ${IMPLEMENTATION_APP_SOURCES})
 add_executable(ImplementationSDLApp ${IMPLEMENTATION_SDL_APP_SOURCES})
 
+target_sources(ImplementationSDLApp
+    PRIVATE
+        ${IMPLEMENTATION_SDL_NOESIS_SOURCES}
+        ${NOESISGUI_THEME_GENERATED_HEADERS}
+)
+
+target_compile_definitions(ImplementationSDLApp
+    PUBLIC
+        NS_APP_APPLICATIONLAUNCHER_API=
+        NS_APP_PROVIDERS_API=
+        NS_APP_THEME_API=
+        NS_RENDER_RENDERCONTEXT_API=
+        NS_RENDER_VKRENDERDEVICE_API=
+        $<$<PLATFORM_ID:Windows>:NOMINMAX>
+    PRIVATE
+        NS_LICENSE_NAME="${NS_LICENSE_NAME}"
+        NS_LICENSE_KEY="${NS_LICENSE_KEY}"
+        $<$<CXX_COMPILER_ID:MSVC>:_HAS_EXCEPTIONS=0>
+)
+
+target_compile_options(ImplementationSDLApp PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/EHs-c->
+)
+
+target_include_directories(ImplementationSDLApp
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/Visuals/include
+        ${NOESISGUI_INCLUDE_DIR}
+        ${NOESISGUI_APP_INCLUDE_DIR}
+        ${NOESISGUI_APP_THEME_INCLUDE_DIR}
+        ${NOESISGUI_RENDERCONTEXT_INCLUDE_DIR}
+        ${NOESISGUI_RENDER_VK_INCLUDE_DIR}
+        ${CMAKE_SOURCE_DIR}/ThirdParty/DiligentEngine/DiligentCore/ThirdParty/Vulkan-Headers/include
+        ${NOESISGUI_THEME_GENERATED_DIR}
+        ${NOESISGUI_RENDER_VK_SRC_DIR}
+        ${NOESISGUI_RENDER_VKCONTEXT_SRC_DIR}
+)
+
 target_link_libraries(ImplementationApp
     PRIVATE
         ImplementationLib
@@ -118,8 +208,9 @@ target_link_libraries(ImplementationApp
 
 target_link_libraries(ImplementationSDLApp
     PRIVATE
-        ImplementationLib
-    SDL3::SDL3
+        ImplementationVisuals
+        NoesisSDK
+        SDL3::SDL3
 )
 
 # ── Post-build: copy runtime DLLs to output directory ──────────────────

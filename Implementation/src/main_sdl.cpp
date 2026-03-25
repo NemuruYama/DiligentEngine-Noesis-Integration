@@ -1,14 +1,25 @@
+#include "MainMenuVisuals.hpp"
+
+#include <NsApp/LocalFontProvider.h>
+#include <NsApp/LocalTextureProvider.h>
+#include <NsApp/LocalXamlProvider.h>
 #include <NsApp/ThemeProviders.h>
-#include <NsGui/Grid.h>
-#include <NsGui/IntegrationAPI.h>
+#include <NsGui/FrameworkElement.h>
 #include <NsGui/IRenderer.h>
 #include <NsGui/IView.h>
 #include <NsGui/InputEnums.h>
+#include <NsGui/IntegrationAPI.h>
 #include <NsGui/Uri.h>
-#include <NsCore/Package.h>
 #include <NsRender/RenderContext.h>
+
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_properties.h>
+
+#include <cstdint>
+#include <cstdio>
+#include <memory>
+#include <string>
 
 extern "C" void NsRegisterReflectionAppProviders();
 extern "C" void NsInitPackageAppProviders();
@@ -28,8 +39,35 @@ extern "C" void NsShutdownPackageRenderVKRenderContext();
 
 namespace
 {
+    using NoesisDiligent::Visuals::CreateMainMenuRoot;
+    using NoesisDiligent::Visuals::MainMenuCallbacks;
+
     Noesis::Ptr<Noesis::IView> gView;
     Noesis::Ptr<NoesisApp::RenderContext> gRenderContext;
+
+    constexpr int kDefaultWidth = 1280;
+    constexpr int kDefaultHeight = 720;
+
+    struct ResolutionPreset
+    {
+        int width;
+        int height;
+    };
+
+    constexpr ResolutionPreset kResolutionPresets[] = {
+        {1920, 1080},
+        {1280, 720},
+        {2560, 1440}
+    };
+    constexpr int kResolutionPresetCount = sizeof(kResolutionPresets) / sizeof(kResolutionPresets[0]);
+    constexpr int kDefaultResolutionPresetIndex = 1;
+
+    enum class WindowMode : int
+    {
+        Windowed = 0,
+        Borderless = 1,
+        Fullscreen = 2
+    };
 
     void InitNoesisPackages()
     {
@@ -54,6 +92,16 @@ namespace
         NsShutdownPackageAppProviders();
     }
 
+    void InstallLocalAssetProviders()
+    {
+        const char* basePath = SDL_GetBasePath();
+        std::string assetsPath = basePath ? std::string(basePath) + "assets" : "assets";
+
+        Noesis::GUI::SetXamlProvider(Noesis::MakePtr<NoesisApp::LocalXamlProvider>(assetsPath.c_str()));
+        Noesis::GUI::SetTextureProvider(Noesis::MakePtr<NoesisApp::LocalTextureProvider>(assetsPath.c_str()));
+        Noesis::GUI::SetFontProvider(Noesis::MakePtr<NoesisApp::LocalFontProvider>(assetsPath.c_str()));
+    }
+
     Noesis::MouseButton ToNoesisMouseButton(Uint8 button)
     {
         switch (button)
@@ -73,55 +121,442 @@ namespace
         }
     }
 
+    Noesis::Key TranslateKey(SDL_Keycode key)
+    {
+        if (key >= SDLK_0 && key <= SDLK_9)
+        {
+            return static_cast<Noesis::Key>(Noesis::Key_D0 + (key - SDLK_0));
+        }
+
+        if (key >= SDLK_A && key <= SDLK_Z)
+        {
+            return static_cast<Noesis::Key>(Noesis::Key_A + (key - SDLK_A));
+        }
+
+        if (key >= SDLK_F1 && key <= SDLK_F12)
+        {
+            return static_cast<Noesis::Key>(Noesis::Key_F1 + (key - SDLK_F1));
+        }
+
+        switch (key)
+        {
+        case SDLK_BACKSPACE:
+            return Noesis::Key_Back;
+        case SDLK_TAB:
+            return Noesis::Key_Tab;
+        case SDLK_CLEAR:
+            return Noesis::Key_Clear;
+        case SDLK_RETURN:
+        case SDLK_KP_ENTER:
+        case SDLK_RETURN2:
+            return Noesis::Key_Return;
+        case SDLK_PAUSE:
+            return Noesis::Key_Pause;
+        case SDLK_CAPSLOCK:
+            return Noesis::Key_CapsLock;
+        case SDLK_ESCAPE:
+            return Noesis::Key_Escape;
+        case SDLK_SPACE:
+            return Noesis::Key_Space;
+        case SDLK_PAGEUP:
+            return Noesis::Key_PageUp;
+        case SDLK_PAGEDOWN:
+            return Noesis::Key_PageDown;
+        case SDLK_END:
+            return Noesis::Key_End;
+        case SDLK_HOME:
+            return Noesis::Key_Home;
+        case SDLK_LEFT:
+            return Noesis::Key_Left;
+        case SDLK_UP:
+            return Noesis::Key_Up;
+        case SDLK_RIGHT:
+            return Noesis::Key_Right;
+        case SDLK_DOWN:
+            return Noesis::Key_Down;
+        case SDLK_INSERT:
+            return Noesis::Key_Insert;
+        case SDLK_DELETE:
+            return Noesis::Key_Delete;
+        case SDLK_NUMLOCKCLEAR:
+            return Noesis::Key_NumLock;
+        case SDLK_SCROLLLOCK:
+            return Noesis::Key_Scroll;
+        case SDLK_LSHIFT:
+            return Noesis::Key_LeftShift;
+        case SDLK_RSHIFT:
+            return Noesis::Key_RightShift;
+        case SDLK_LCTRL:
+            return Noesis::Key_LeftCtrl;
+        case SDLK_RCTRL:
+            return Noesis::Key_RightCtrl;
+        case SDLK_LALT:
+            return Noesis::Key_LeftAlt;
+        case SDLK_RALT:
+            return Noesis::Key_RightAlt;
+        case SDLK_LGUI:
+            return Noesis::Key_LWin;
+        case SDLK_RGUI:
+            return Noesis::Key_RWin;
+        case SDLK_APPLICATION:
+            return Noesis::Key_Apps;
+        case SDLK_KP_0:
+            return Noesis::Key_NumPad0;
+        case SDLK_KP_1:
+            return Noesis::Key_NumPad1;
+        case SDLK_KP_2:
+            return Noesis::Key_NumPad2;
+        case SDLK_KP_3:
+            return Noesis::Key_NumPad3;
+        case SDLK_KP_4:
+            return Noesis::Key_NumPad4;
+        case SDLK_KP_5:
+            return Noesis::Key_NumPad5;
+        case SDLK_KP_6:
+            return Noesis::Key_NumPad6;
+        case SDLK_KP_7:
+            return Noesis::Key_NumPad7;
+        case SDLK_KP_8:
+            return Noesis::Key_NumPad8;
+        case SDLK_KP_9:
+            return Noesis::Key_NumPad9;
+        case SDLK_KP_MULTIPLY:
+            return Noesis::Key_Multiply;
+        case SDLK_KP_PLUS:
+            return Noesis::Key_Add;
+        case SDLK_KP_MINUS:
+            return Noesis::Key_Subtract;
+        case SDLK_KP_DECIMAL:
+            return Noesis::Key_Decimal;
+        case SDLK_KP_DIVIDE:
+            return Noesis::Key_Divide;
+        default:
+            return Noesis::Key_None;
+        }
+    }
+
+    std::uint32_t DecodeNextUtf8Codepoint(const char *&text)
+    {
+        const unsigned char lead = static_cast<unsigned char>(*text++);
+        if ((lead & 0x80u) == 0)
+        {
+            return lead;
+        }
+
+        if ((lead & 0xE0u) == 0xC0u)
+        {
+            const unsigned char trail0 = static_cast<unsigned char>(*text++);
+            return ((lead & 0x1Fu) << 6) | (trail0 & 0x3Fu);
+        }
+
+        if ((lead & 0xF0u) == 0xE0u)
+        {
+            const unsigned char trail0 = static_cast<unsigned char>(*text++);
+            const unsigned char trail1 = static_cast<unsigned char>(*text++);
+            return ((lead & 0x0Fu) << 12) | ((trail0 & 0x3Fu) << 6) | (trail1 & 0x3Fu);
+        }
+
+        const unsigned char trail0 = static_cast<unsigned char>(*text++);
+        const unsigned char trail1 = static_cast<unsigned char>(*text++);
+        const unsigned char trail2 = static_cast<unsigned char>(*text++);
+        return ((lead & 0x07u) << 18) | ((trail0 & 0x3Fu) << 12) | ((trail1 & 0x3Fu) << 6) | (trail2 & 0x3Fu);
+    }
+
     void UpdateViewSize(SDL_Window *window)
     {
         int width = 0;
         int height = 0;
         if (SDL_GetWindowSizeInPixels(window, &width, &height) && gView != nullptr)
         {
-            gView->SetSize(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+            gView->SetSize(static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height));
         }
+    }
+
+    int FindResolutionPresetIndex(int width, int height)
+    {
+        int bestIndex = 0;
+        int bestDistance = 0x7fffffff;
+        for (int index = 0; index < kResolutionPresetCount; ++index)
+        {
+            const int widthDelta = width - kResolutionPresets[index].width;
+            const int heightDelta = height - kResolutionPresets[index].height;
+            const int distance = (widthDelta < 0 ? -widthDelta : widthDelta) +
+                (heightDelta < 0 ? -heightDelta : heightDelta);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestIndex = index;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    int GetWindowResolutionPresetIndex(SDL_Window *window)
+    {
+        int width = 0;
+        int height = 0;
+        if (!SDL_GetWindowSizeInPixels(window, &width, &height))
+        {
+            return kDefaultResolutionPresetIndex;
+        }
+
+        return FindResolutionPresetIndex(width, height);
+    }
+
+    int GetCurrentWindowModeIndex(SDL_Window *window)
+    {
+        const SDL_WindowFlags flags = SDL_GetWindowFlags(window);
+        if ((flags & SDL_WINDOW_FULLSCREEN) != 0)
+        {
+            return SDL_GetWindowFullscreenMode(window) == nullptr ?
+                static_cast<int>(WindowMode::Borderless) :
+                static_cast<int>(WindowMode::Fullscreen);
+        }
+
+        if ((flags & SDL_WINDOW_BORDERLESS) != 0)
+        {
+            return static_cast<int>(WindowMode::Borderless);
+        }
+
+        return static_cast<int>(WindowMode::Windowed);
+    }
+
+    bool LeaveFullscreen(SDL_Window *window)
+    {
+        if (!SDL_SetWindowFullscreen(window, false))
+        {
+            std::fprintf(stderr, "SDL_SetWindowFullscreen(false) failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        if (!SDL_SetWindowMouseGrab(window, false))
+        {
+            std::fprintf(stderr, "SDL_SetWindowMouseGrab(false) failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        SDL_SyncWindow(window);
+        return true;
+    }
+
+    bool CenterWindowOnDisplay(SDL_Window *window, int width, int height)
+    {
+        const SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+        if (display == 0)
+        {
+            std::fprintf(stderr, "SDL_GetDisplayForWindow failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        SDL_Rect bounds{};
+        if (!SDL_GetDisplayBounds(display, &bounds))
+        {
+            std::fprintf(stderr, "SDL_GetDisplayBounds failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        const int x = bounds.x + ((bounds.w - width) / 2);
+        const int y = bounds.y + ((bounds.h - height) / 2);
+        if (!SDL_SetWindowPosition(window, x, y))
+        {
+            std::fprintf(stderr, "SDL_SetWindowPosition failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        return true;
+    }
+
+    bool ApplyWindowedResolution(SDL_Window *window, int resolutionIndex)
+    {
+        if (resolutionIndex < 0 || resolutionIndex >= kResolutionPresetCount)
+        {
+            return false;
+        }
+
+        const ResolutionPreset& preset = kResolutionPresets[resolutionIndex];
+        if (!LeaveFullscreen(window))
+        {
+            return false;
+        }
+
+        if (!SDL_SetWindowBordered(window, true))
+        {
+            std::fprintf(stderr, "SDL_SetWindowBordered(true) failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        if (!SDL_SetWindowSize(window, preset.width, preset.height))
+        {
+            std::fprintf(stderr, "SDL_SetWindowSize failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        CenterWindowOnDisplay(window, preset.width, preset.height);
+        SDL_SyncWindow(window);
+        return true;
+    }
+
+    bool ApplyBorderlessMode(SDL_Window *window, int resolutionIndex)
+    {
+        if (resolutionIndex < 0 || resolutionIndex >= kResolutionPresetCount)
+        {
+            return false;
+        }
+
+        const ResolutionPreset& preset = kResolutionPresets[resolutionIndex];
+        if (!LeaveFullscreen(window))
+        {
+            return false;
+        }
+
+        if (!SDL_SetWindowBordered(window, false))
+        {
+            std::fprintf(stderr, "SDL_SetWindowBordered(false) failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        if (!SDL_SetWindowSize(window, preset.width, preset.height))
+        {
+            std::fprintf(stderr, "SDL_SetWindowSize failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        CenterWindowOnDisplay(window, preset.width, preset.height);
+        SDL_SyncWindow(window);
+        return true;
+    }
+
+    bool ApplyExclusiveFullscreen(SDL_Window *window, int resolutionIndex)
+    {
+        if (resolutionIndex < 0 || resolutionIndex >= kResolutionPresetCount)
+        {
+            return false;
+        }
+
+        const ResolutionPreset& preset = kResolutionPresets[resolutionIndex];
+        if (!LeaveFullscreen(window))
+        {
+            return false;
+        }
+
+        const SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+        if (display == 0)
+        {
+            std::fprintf(stderr, "SDL_GetDisplayForWindow failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        SDL_DisplayMode closestMode{};
+        if (!SDL_GetClosestFullscreenDisplayMode(display, preset.width, preset.height, 0.0f, true, &closestMode))
+        {
+            std::fprintf(stderr, "SDL_GetClosestFullscreenDisplayMode failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        if (!SDL_SetWindowFullscreenMode(window, &closestMode))
+        {
+            std::fprintf(stderr, "SDL_SetWindowFullscreenMode failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        if (!SDL_SetWindowFullscreen(window, true))
+        {
+            std::fprintf(stderr, "SDL_SetWindowFullscreen(true) failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        if (!SDL_SetWindowMouseGrab(window, true))
+        {
+            std::fprintf(stderr, "SDL_SetWindowMouseGrab(true) failed: %s\n", SDL_GetError());
+            return false;
+        }
+
+        SDL_SyncWindow(window);
+        return true;
+    }
+
+    bool ApplyWindowMode(SDL_Window *window, int windowModeIndex, int resolutionIndex)
+    {
+        switch (windowModeIndex)
+        {
+        case static_cast<int>(WindowMode::Windowed):
+            return ApplyWindowedResolution(window, resolutionIndex);
+        case static_cast<int>(WindowMode::Borderless):
+            return ApplyBorderlessMode(window, resolutionIndex);
+        case static_cast<int>(WindowMode::Fullscreen):
+            return ApplyExclusiveFullscreen(window, resolutionIndex);
+        default:
+            return false;
+        }
+    }
+
+    bool ApplyResolution(SDL_Window *window, int resolutionIndex)
+    {
+        return ApplyWindowMode(window, GetCurrentWindowModeIndex(window), resolutionIndex);
+    }
+
+    Noesis::Ptr<Noesis::IView> CreateMainMenuView(SDL_Window *window)
+    {
+        MainMenuCallbacks callbacks;
+        const auto activeResolutionIndex = std::make_shared<int>(GetWindowResolutionPresetIndex(window));
+
+        callbacks.onQuit = []()
+        {
+            SDL_Event quitEvent{};
+            quitEvent.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&quitEvent);
+        };
+        callbacks.initialResolutionIndex = *activeResolutionIndex;
+        callbacks.initialWindowModeIndex = GetCurrentWindowModeIndex(window);
+        callbacks.onResolutionChanged = [window, activeResolutionIndex](int resolutionIndex)
+        {
+            if (!ApplyResolution(window, resolutionIndex))
+            {
+                return false;
+            }
+
+            *activeResolutionIndex = resolutionIndex;
+            return true;
+        };
+        callbacks.onWindowModeChanged = [window, activeResolutionIndex](int windowModeIndex)
+        {
+            return ApplyWindowMode(window, windowModeIndex, *activeResolutionIndex);
+        };
+
+        Noesis::Ptr<Noesis::FrameworkElement> root = CreateMainMenuRoot(std::move(callbacks));
+        if (root == nullptr)
+        {
+            return nullptr;
+        }
+
+        return Noesis::GUI::CreateView(root);
     }
 
     bool NoesisInit(SDL_Window *window)
     {
         InitNoesisPackages();
 
-        Noesis::GUI::SetLogHandler([](const char *, uint32_t, uint32_t level, const char *, const char *msg)
-                                   {
-        const char* prefixes[] = {"T", "D", "I", "W", "E"};
-        printf("[NOESIS/%s] %s\n", prefixes[level], msg); });
+        Noesis::GUI::SetLogHandler([](const char *, std::uint32_t, std::uint32_t level, const char *, const char *msg)
+        {
+            const char* prefixes[] = {"T", "D", "I", "W", "E"};
+            std::printf("[NOESIS/%s] %s\n", prefixes[level], msg);
+            std::fflush(stdout);
+        });
 
         Noesis::GUI::SetLicense(NS_LICENSE_NAME, NS_LICENSE_KEY);
         Noesis::GUI::Init();
 
+        InstallLocalAssetProviders();
         NoesisApp::SetThemeProviders();
         Noesis::GUI::LoadApplicationResources(NoesisApp::Theme::DarkBlue());
 
-        Noesis::Ptr<Noesis::Grid> xaml(Noesis::GUI::ParseXaml<Noesis::Grid>(
-            R"(
-        <Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
-            <Grid.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Offset="0" Color="#FF123F61"/>
-                    <GradientStop Offset="0.6" Color="#FF0E4B79"/>
-                    <GradientStop Offset="0.7" Color="#FF106097"/>
-                </LinearGradientBrush>
-            </Grid.Background>
-            <Viewbox>
-                <StackPanel Margin="50">
-                    <Button Content="Hello World!" Margin="0,30,0,0"/>
-                    <ComboBox Width="220" Margin="0,16,0,0" SelectedIndex="0">
-                        <ComboBoxItem Content="Option 1"/>
-                        <ComboBoxItem Content="Option 2"/>
-                        <ComboBoxItem Content="Option 3"/>
-                    </ComboBox>
-                </StackPanel>
-            </Viewbox>
-        </Grid>
-    )"));
+        gView = CreateMainMenuView(window);
+        if (gView == nullptr)
+        {
+            return false;
+        }
 
-        gView = Noesis::GUI::CreateView(xaml);
         gView->SetFlags(Noesis::RenderFlags_PPAA | Noesis::RenderFlags_LCD);
 
         SDL_PropertiesID properties = SDL_GetWindowProperties(window);
@@ -132,17 +567,23 @@ namespace
             return false;
         }
 
-        uint32_t samples = 1;
+        std::uint32_t sampleCount = 1;
         gRenderContext = NoesisApp::RenderContext::Create("VK");
-        gRenderContext->Init(nativeWindow, samples, true, false);
+        gRenderContext->Init(nativeWindow, sampleCount, true, false);
 
         gView->GetRenderer()->Init(gRenderContext->GetDevice());
         UpdateViewSize(window);
+        gView->Activate();
         return true;
     }
 
     void RenderFrame(SDL_Window *window, double timeSeconds)
     {
+        if (gView == nullptr || gRenderContext == nullptr)
+        {
+            return;
+        }
+
         int width = 0;
         int height = 0;
         if (!SDL_GetWindowSizeInPixels(window, &width, &height))
@@ -155,7 +596,7 @@ namespace
         gRenderContext->BeginRender();
         gView->GetRenderer()->UpdateRenderTree();
         gView->GetRenderer()->RenderOffscreen();
-        gRenderContext->SetDefaultRenderTarget(static_cast<uint32_t>(width), static_cast<uint32_t>(height), true);
+        gRenderContext->SetDefaultRenderTarget(static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), true);
         gView->GetRenderer()->Render();
         gRenderContext->EndRender();
         gRenderContext->Swap();
@@ -173,7 +614,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    SDL_Window *window = SDL_CreateWindow("NoesisDiligent", 1280, 720, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+    SDL_Window *window = SDL_CreateWindow("NoesisSDL", kDefaultWidth, kDefaultHeight, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window == nullptr)
     {
         SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
@@ -183,9 +624,24 @@ int main(int argc, char **argv)
 
     if (!NoesisInit(window))
     {
+        if (gRenderContext != nullptr)
+        {
+            gRenderContext->Shutdown();
+            gRenderContext.Reset();
+        }
+
+        gView.Reset();
+        Noesis::GUI::Shutdown();
+        ShutdownNoesisPackages();
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
+    }
+
+    bool textInputStarted = false;
+    if (SDL_StartTextInput(window))
+    {
+        textInputStarted = true;
     }
 
     bool running = true;
@@ -202,38 +658,106 @@ int main(int argc, char **argv)
             case SDL_EVENT_WINDOW_RESIZED:
             case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
                 UpdateViewSize(window);
-                gRenderContext->Resize();
+                if (gRenderContext != nullptr)
+                {
+                    gRenderContext->Resize();
+                }
+                break;
+            case SDL_EVENT_WINDOW_FOCUS_GAINED:
+                if (gView != nullptr)
+                {
+                    gView->Activate();
+                }
+                break;
+            case SDL_EVENT_WINDOW_FOCUS_LOST:
+                if (gView != nullptr)
+                {
+                    gView->Deactivate();
+                }
                 break;
             case SDL_EVENT_MOUSE_MOTION:
-                gView->MouseMove(static_cast<int>(event.motion.x), static_cast<int>(event.motion.y));
+                if (gView != nullptr)
+                {
+                    gView->MouseMove(static_cast<int>(event.motion.x), static_cast<int>(event.motion.y));
+                }
                 break;
             case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                if (event.button.clicks > 1)
+                if (gView != nullptr)
                 {
-                    gView->MouseDoubleClick(
-                        static_cast<int>(event.button.x),
-                        static_cast<int>(event.button.y),
-                        ToNoesisMouseButton(event.button.button));
-                }
-                else
-                {
-                    gView->MouseButtonDown(
-                        static_cast<int>(event.button.x),
-                        static_cast<int>(event.button.y),
-                        ToNoesisMouseButton(event.button.button));
+                    if (event.button.clicks > 1)
+                    {
+                        gView->MouseDoubleClick(
+                            static_cast<int>(event.button.x),
+                            static_cast<int>(event.button.y),
+                            ToNoesisMouseButton(event.button.button));
+                    }
+                    else
+                    {
+                        gView->MouseButtonDown(
+                            static_cast<int>(event.button.x),
+                            static_cast<int>(event.button.y),
+                            ToNoesisMouseButton(event.button.button));
+                    }
                 }
                 break;
             case SDL_EVENT_MOUSE_BUTTON_UP:
-                gView->MouseButtonUp(
-                    static_cast<int>(event.button.x),
-                    static_cast<int>(event.button.y),
-                    ToNoesisMouseButton(event.button.button));
+                if (gView != nullptr)
+                {
+                    gView->MouseButtonUp(
+                        static_cast<int>(event.button.x),
+                        static_cast<int>(event.button.y),
+                        ToNoesisMouseButton(event.button.button));
+                }
                 break;
             case SDL_EVENT_MOUSE_WHEEL:
-                gView->MouseWheel(
-                    static_cast<int>(event.wheel.mouse_x),
-                    static_cast<int>(event.wheel.mouse_y),
-                    event.wheel.integer_y);
+                if (gView != nullptr)
+                {
+                    if (event.wheel.integer_y != 0)
+                    {
+                        gView->MouseWheel(
+                            static_cast<int>(event.wheel.mouse_x),
+                            static_cast<int>(event.wheel.mouse_y),
+                            event.wheel.integer_y * 120);
+                    }
+
+                    if (event.wheel.integer_x != 0)
+                    {
+                        gView->MouseHWheel(
+                            static_cast<int>(event.wheel.mouse_x),
+                            static_cast<int>(event.wheel.mouse_y),
+                            event.wheel.integer_x * 120);
+                    }
+                }
+                break;
+            case SDL_EVENT_KEY_DOWN:
+                if (gView != nullptr)
+                {
+                    const Noesis::Key key = TranslateKey(event.key.key);
+                    if (key != Noesis::Key_None)
+                    {
+                        gView->KeyDown(key);
+                    }
+                }
+                break;
+            case SDL_EVENT_KEY_UP:
+                if (gView != nullptr)
+                {
+                    const Noesis::Key key = TranslateKey(event.key.key);
+                    if (key != Noesis::Key_None)
+                    {
+                        gView->KeyUp(key);
+                    }
+                }
+                break;
+            case SDL_EVENT_TEXT_INPUT:
+                if (gView != nullptr && event.text.text != nullptr)
+                {
+                    const char *text = event.text.text;
+                    while (*text != '\0')
+                    {
+                        gView->Char(DecodeNextUtf8Codepoint(text));
+                    }
+                }
                 break;
             default:
                 break;
@@ -241,6 +765,16 @@ int main(int argc, char **argv)
         }
 
         RenderFrame(window, static_cast<double>(SDL_GetTicks()) / 1000.0);
+    }
+
+    if (textInputStarted)
+    {
+        SDL_StopTextInput(window);
+    }
+
+    if (gView != nullptr)
+    {
+        gView->GetRenderer()->Shutdown();
     }
 
     if (gRenderContext != nullptr)
