@@ -55,6 +55,33 @@ namespace NoesisDiligent
             return format == Diligent::TEX_FORMAT_RGBA8_UNORM_SRGB ||
                    format == Diligent::TEX_FORMAT_BGRA8_UNORM_SRGB;
         }
+
+        void BindRenderTargetsAndViewport(ID3D12GraphicsCommandList *commandList,
+                                          const D3D12_CPU_DESCRIPTOR_HANDLE& rtvHandle,
+                                          const D3D12_CPU_DESCRIPTOR_HANDLE& dsvHandle,
+                                          const Diligent::TextureDesc& backBufferDesc)
+        {
+            if (commandList == nullptr)
+            {
+                return;
+            }
+
+            commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
+            D3D12_VIEWPORT viewport{};
+            viewport.TopLeftX = 0.0f;
+            viewport.TopLeftY = 0.0f;
+            viewport.Width = static_cast<float>(backBufferDesc.Width);
+            viewport.Height = static_cast<float>(backBufferDesc.Height);
+            viewport.MinDepth = 0.0f;
+            viewport.MaxDepth = 1.0f;
+            commandList->RSSetViewports(1, &viewport);
+
+            D3D12_RECT scissorRect{};
+            scissorRect.right = static_cast<LONG>(backBufferDesc.Width);
+            scissorRect.bottom = static_cast<LONG>(backBufferDesc.Height);
+            commandList->RSSetScissorRects(1, &scissorRect);
+        }
     }
 
     std::uint64_t D3D12Backend::GetSDLWindowFlags() const
@@ -263,21 +290,20 @@ namespace NoesisDiligent
         const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = dsvViewD3D12->GetCPUDescriptorHandle();
         commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
         commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-        commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+        BindRenderTargetsAndViewport(commandList, rtvHandle, dsvHandle, backBufferDesc);
 
-        D3D12_VIEWPORT viewport{};
-        viewport.TopLeftX = 0.0f;
-        viewport.TopLeftY = 0.0f;
-        viewport.Width = static_cast<float>(backBufferDesc.Width);
-        viewport.Height = static_cast<float>(backBufferDesc.Height);
-        viewport.MinDepth = 0.0f;
-        viewport.MaxDepth = 1.0f;
-        commandList->RSSetViewports(1, &viewport);
+        if (false)
+        {
+            mImmediateContext->Flush();
+            mImmediateContext->InvalidateState();
+            // Render3DScene();
+        }
 
-        D3D12_RECT scissorRect{};
-        scissorRect.right = static_cast<LONG>(backBufferDesc.Width);
-        scissorRect.bottom = static_cast<LONG>(backBufferDesc.Height);
-        commandList->RSSetScissorRects(1, &scissorRect);
+        // Keep the final Noesis pass bound to the current command list state instead of
+        // assuming the original pointer remains valid after future Diligent work is added.
+        commandList = mImmediateContextD3D12->GetD3D12CommandList();
+        NoesisApp::D3D12Factory::SetCommandList(mNoesisDevice, commandList, frameFenceValue);
+        BindRenderTargetsAndViewport(commandList, rtvHandle, dsvHandle, backBufferDesc);
 
         view->GetRenderer()->Render();
 
