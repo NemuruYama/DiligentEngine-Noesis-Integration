@@ -18,7 +18,7 @@ namespace NoesisDiligent
 
     struct AppStartupOptions
     {
-        WindowMode windowMode = WindowMode::Borderless;
+        WindowMode windowMode = WindowMode::Windowed;
         bool useDisplayResolution = false;
     };
 

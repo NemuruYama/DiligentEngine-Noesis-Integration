@@ -123,7 +123,6 @@ target_link_libraries(ImplementationSDLApp
 )
 
 # ── Post-build: copy runtime DLLs to output directory ──────────────────
-set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/Implementation/assets")
 set(VISUALS_ASSETS_DIR "${CMAKE_SOURCE_DIR}/Visuals/assets")
 
 if(PLATFORM_WIN32)
@@ -140,13 +139,6 @@ function(configure_implementation_runtime target_name)
             COMMENT "Copying Noesis runtime library to output directory"
         )
     endif()
-
-    add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${ASSETS_DIR}"
-            "$<TARGET_FILE_DIR:${target_name}>/assets"
-        COMMENT "Copying game assets to output directory"
-    )
 
     add_custom_command(TARGET ${target_name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
